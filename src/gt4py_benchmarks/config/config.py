@@ -1,4 +1,4 @@
-from gt4py_benchmarks.config.defaults import DEFAULT_BACKEND, DEFAULT_VERBOSE
+import gt4py_benchmarks.config.defaults
 
-GT_BACKEND = DEFAULT_BACKEND
-STENCIL_VERBOSE = DEFAULT_VERBOSE
+GT_BACKEND = defaults.GT_BACKEND
+STENCIL_VERBOSE = defaults.STENCIL_VERBOSE

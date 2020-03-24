@@ -1,2 +1,2 @@
-DEFAULT_BACKEND = "numpy"
-DEFAULT_VERBOSE = False
+GT_BACKEND = "numpy"
+STENCIL_VERBOSE = False
