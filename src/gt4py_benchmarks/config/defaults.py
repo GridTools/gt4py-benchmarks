@@ -1,0 +1,2 @@
+DEFAULT_BACKEND = "numpy"
+DEFAULT_VERBOSE = False
