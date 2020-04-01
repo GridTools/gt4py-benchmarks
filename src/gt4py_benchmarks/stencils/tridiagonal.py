@@ -8,7 +8,6 @@ from gt4py_benchmarks.config import GT_BACKEND, STENCIL_VERBOSE
 
 DTYPE = float64
 _F64 = Field[DTYPE]
-STENCIL = update_wrapper(partial(stencil, backend=GT_BACKEND, verbose=STENCIL_VERBOSE))
 
 
 @function
@@ -67,7 +66,7 @@ def periodic_forward2_first(a, b, c, u, alpha, gamma):
 
 @function
 def periodic_forward2_1_m1(a, b, c, u, alpha, gamma):
-    return DTYPE(0)
+    return 0
 
 
 @function
@@ -78,7 +77,7 @@ def periodic_forward2_last(a, b, c, u, alpha, gamma):
 @function
 def periodic_backward2_first(z, c, d, x, beta, gamma, fact, z_top, x_top):
     z_out = backward_0_m1(z, c, d)
-    fact_out = x + beta * x_top / gamma / (DTYPE(1) + z_out + beta * z_top / gamma)
+    fact_out = x + beta * x_top / gamma / (1 + z_out + beta * z_top / gamma)
     return z_out, fact_out, z_top, x_top
 
 

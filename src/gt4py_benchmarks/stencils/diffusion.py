@@ -18,50 +18,57 @@ from gt4py_benchmarks.stencils import tridiagonal
 
 DTYPE = float64
 _F64 = Field[DTYPE]
-STENCIL = update_wrapper(partial(stencil, backend=GT_BACKEND, verbose=STENCIL_VERBOSE))
+STENCIL = update_wrapper(partial(stencil, backend=GT_BACKEND, verbose=STENCIL_VERBOSE), stencil)
 
 
-@STENCIL()
-def horizontal(out: _F64, inp: _F64, dx: _F64, dy: _F64, dt: _F64, coeff: _F64):
+# ~ @STENCIL()
+def horizontal(out: _F64, inp: _F64, *, dx: DTYPE, dy: DTYPE, dt: DTYPE, coeff: DTYPE):
     with computation(PARALLEL), interval(...):
-        weights = array([-1 / 90, 5 / 36, -49 / 36, 49 / 36, -5 / 36, 1 / 90], dtype=DTYPE)
+        # ~ weights = [-1. / 90, 5. / 36, -49. / 36, 49. / 36, -5. / 36, 1. / 90]
+        w_0 = -1.0 / 90
+        w_1 = 5.0 / 36
+        w_2 = -49.0 / 36
+        w_3 = 49.0 / 36
+        w_4 = -5.0 / 36
+        w_5 = 1.0 / 90
+        out = inp
         flx_x0 = (
-            weights[0] * inp[-3, 0]
-            + weights[1] * inp[-2, 0]
-            + weights[2] * inp[-1, 0]
-            + weights[3] * inp[0, 0]
-            + weights[4] * inp[1, 0]
-            + weights[5] * inp[2, 0]
+            w_0 * inp[-3, 0]
+            + w_1 * inp[-2, 0]
+            + w_2 * inp[-1, 0]
+            + w_3 * inp[0, 0]
+            + w_4 * inp[1, 0]
+            + w_5 * inp[2, 0]
         ) / dx
         flx_x1 = (
-            weights[0] * inp[-2, 0]
-            + weights[1] * inp[-1, 0]
-            + weights[2] * inp[0, 0]
-            + weights[3] * inp[1, 0]
-            + weights[4] * inp[2, 0]
-            + weights[5] * inp[3, 0]
+            w_0 * inp[-2, 0]
+            + w_1 * inp[-1, 0]
+            + w_2 * inp[0, 0]
+            + w_3 * inp[1, 0]
+            + w_4 * inp[2, 0]
+            + w_5 * inp[3, 0]
         ) / dx
         flx_y0 = (
-            weights[0] * inp[0, -3]
-            + weights[1] * inp[0, -2]
-            + weights[2] * inp[0, -1]
-            + weights[3] * inp[0, 0]
-            + weights[4] * inp[0, 1]
-            + weights[5] * inp[0, 2]
+            w_0 * inp[0, -3]
+            + w_1 * inp[0, -2]
+            + w_2 * inp[0, -1]
+            + w_3 * inp[0, 0]
+            + w_4 * inp[0, 1]
+            + w_5 * inp[0, 2]
         ) / dy
         flx_y1 = (
-            weights[0] * inp[0, -2]
-            + weights[1] * inp[0, -1]
-            + weights[2] * inp[0, 0]
-            + weights[3] * inp[0, 1]
-            + weights[4] * inp[0, 2]
-            + weights[5] * inp[0, 3]
+            w_0 * inp[0, -2]
+            + w_1 * inp[0, -1]
+            + w_2 * inp[0, 0]
+            + w_3 * inp[0, 1]
+            + w_4 * inp[0, 2]
+            + w_5 * inp[0, 3]
         ) / dy
 
-        flx_x0 = flx_x0 * (DTYPE(0) if inp - inp[-1, 0] < DTYPE(0) else flx_x0)
-        flx_x1 = flx_x1 * (DTYPE(0) if inp[1, 0] - inp < DTYPE(0) else flx_x1)
-        flx_y0 = flx_y0 * (DTYPE(0) if inp - inp[0, -1] < DTYPE(0) else flx_y0)
-        flx_y1 = flx_y1 * (DTYPE(0) if inp[0, 1] - inp < DTYPE(0) else flx_y1)
+        flx_x0 = flx_x0 * (0 if inp - inp[-1, 0] < 0 else flx_x0)
+        flx_x1 = flx_x1 * (0 if inp[1, 0] - inp < 0 else flx_x1)
+        flx_y0 = flx_y0 * (0 if inp - inp[0, -1] < 0 else flx_y0)
+        flx_y1 = flx_y1 * (0 if inp[0, 1] - inp < 0 else flx_y1)
 
         out = inp + coeff * dt * ((flx_x1 - flx_x0) / dx + (flx_y1 - flx_y0) / dy)
 
@@ -87,13 +94,11 @@ def diffusion_w_forward1_first(
     dt: _F64,
     coeff: _F64,
 ):
-    c_ = -coeff / (DTYPE(2) * dz * dz)
+    c_ = -coeff / (2.0 * dz * dz)
     a_ = c
-    b_ = DTYPE(1) / dt - a_ - c_
-    d_ = DTYPE(1) / dt * data + DTYPE(0.5) * coeff * (
-        data_tmp - DTYPE(2) * data + data[0, 0, 1]
-    ) / (dz * dz)
-    beta_ = -coeff / (DTYPE(2) * dz * dz)
+    b_ = 1.0 / dt - a_ - c_
+    d_ = 1.0 / dt * data + 0.5 * coeff * (data_tmp - 2.0 * data + data[0, 0, 1]) / (dz * dz)
+    beta_ = -coeff / (2.0 * dz * dz)
     alpha_ = beta_
     gamma_ = -b_
 
@@ -119,43 +124,54 @@ def diffusion_w_forward1_1_m1(
     dt: _F64,
     coeff: _F64,
 ):
-    c_ = -coeff / (DTYPE(2) * dz * dz)
+    c_ = -coeff / (2.0 * dz * dz)
     a_ = c_
-    b_ = DTYPE(1) / dt - a_ - c_
-    d_ = DTYPE(1) / dt * data + DTYPE(0.5) * coeff * (
-        data[0, 0, -1] - DTYPE(2) * data + data[0, 0, 1]
-    ) / (dz * dz)
+    b_ = 1.0 / dt - a_ - c_
+    d_ = 1.0 / dt * data + 0.5 * coeff * (data[0, 0, -1] - 2.0 * data + data[0, 0, 1]) / (dz * dz)
 
     return alpha, beta, gamma, a_, b_, c_, d_, data_tmp
 
 
 @function
 def diffusion_w_forward1_last(
-    alpha: _F64,
-    beta: _F64,
-    gamma: _F64,
-    a: _F64,
-    b: _F64,
-    c: _F64,
-    d: _F64,
+    alpha: DTYPE,
+    beta: DTYPE,
+    gamma: DTYPE,
+    a: DTYPE,
+    b: DTYPE,
+    c: DTYPE,
+    d: DTYPE,
     data: _F64,
     data_tmp: _F64,
-    dz: _F64,
-    dt: _F64,
-    coeff: _F64,
+    dz: DTYPE,
+    dt: DTYPE,
+    coeff: DTYPE,
 ):
-    c_ = -coeff / (DTYPE(2) * dz * dz)
+    c_ = -coeff / (2) * dz * dz
     a_ = c_
-    b_ = DTYPE(1) / dt - a_ - c_
-    d_ = DTYPE(1) / dt * data + DTYPE(0.5) * coeff * (
-        data[0, 0, -1] - DTYPE(2) * data + data_tmp
-    ) / (dz * dz)
+    b_ = 1.0 / dt - a_ - c_
+    d_ = 1.0 / dt * data + 0.5 * coeff * (data[0, 0, -1] - 2.0 * data + data_tmp) / (dz * dz)
 
     return alpha, beta, gamma, a_, b_, c_, d_, data_tmp
 
 
-@STENCIL()
-def vertical(data_out, data_in):
+# ~ @STENCIL()
+def vertical(
+    data_out: _F64,
+    data_in: _F64,
+    *,
+    alpha: DTYPE,
+    beta: DTYPE,
+    gamma: DTYPE,
+    a: DTYPE,
+    b: DTYPE,
+    c: DTYPE,
+    d: DTYPE,
+    data_tmp: DTYPE,
+    dz: DTYPE,
+    dt: DTYPE,
+    coeff: DTYPE,
+):
     with computation(FORWARD), interval(-1, None):
         data_out = diffusion_w0_last(data_out, data_in)
 
