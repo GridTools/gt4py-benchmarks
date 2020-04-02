@@ -18,7 +18,29 @@ TEST_ORIGIN = (3, 3, 0)
 TEST_DTYPE = numpy.float64
 
 
-@pytest.fixture(params=["debug", "numpy", "gtx86", "gtmc", "gtcuda"])
+def has_cupy():
+    try:
+        import cupy
+
+        return True
+    except ImportError:
+        return False
+
+
+@pytest.fixture(
+    params=[
+        "debug",
+        "numpy",
+        "gtx86",
+        "gtmc",
+        pytest.param(
+            "gtcuda",
+            marks=pytest.mark.skipif(
+                not has_cupy(), reason="cupy dependency for gtcuda backend not installed."
+            ),
+        ),
+    ]
+)
 def test_backend(request):
     yield request.param
 
@@ -31,6 +53,7 @@ class Simulation:
         self.max_time = 1e-2
         self.time_step = 1e-3
         self.diffusion_coeff = 0.05
+        self.backend = backend
         self.data = self.make_storage(numpy.fromfunction(self.get_reference, shape=self.shape))
         self.data1 = self.make_storage(numpy.zeros(self.shape))
         self.delta_x = self.dtype(self.domain[0]) / self.shape[0]
@@ -47,7 +70,7 @@ class Simulation:
 
     def make_storage(self, array):
         return storage.from_array(
-            array, TEST_BACKEND, default_origin=TEST_ORIGIN, dtype=self.dtype
+            array, self.backend, default_origin=TEST_ORIGIN, dtype=self.dtype
         )
 
     def swap_data(self):
@@ -57,7 +80,7 @@ class Simulation:
 
     def run(self):
         time = 0
-        stencil = TEST_STENCIL(definition=diffusion.horizontal)
+        stencil = gtscript.stencil(backend=self.backend, definition=diffusion.horizontal)
         while time < self.max_time:
             stencil(
                 self.data1,

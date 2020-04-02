@@ -24,7 +24,6 @@ STENCIL = update_wrapper(partial(stencil, backend=GT_BACKEND, verbose=STENCIL_VE
 # ~ @STENCIL()
 def horizontal(out: _F64, inp: _F64, *, dx: DTYPE, dy: DTYPE, dt: DTYPE, coeff: DTYPE):
     with computation(PARALLEL), interval(...):
-        # ~ weights = [-1. / 90, 5. / 36, -49. / 36, 49. / 36, -5. / 36, 1. / 90]
         w_0 = -1.0 / 90
         w_1 = 5.0 / 36
         w_2 = -49.0 / 36
