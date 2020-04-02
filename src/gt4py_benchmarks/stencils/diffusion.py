@@ -14,6 +14,7 @@ from gt4py.gtscript import (
 
 from gt4py_benchmarks.config import GT_BACKEND, STENCIL_VERBOSE
 from gt4py_benchmarks.stencils import tridiagonal
+from gt4py_benchmarks.stencils.tooling import AbstractStencil
 
 
 DTYPE = float64
@@ -22,54 +23,64 @@ STENCIL = update_wrapper(partial(stencil, backend=GT_BACKEND, verbose=STENCIL_VE
 
 
 # ~ @STENCIL()
-def horizontal(out: _F64, inp: _F64, *, dx: DTYPE, dy: DTYPE, dt: DTYPE, coeff: DTYPE):
-    with computation(PARALLEL), interval(...):
-        w_0 = -1.0 / 90
-        w_1 = 5.0 / 36
-        w_2 = -49.0 / 36
-        w_3 = 49.0 / 36
-        w_4 = -5.0 / 36
-        w_5 = 1.0 / 90
-        out = inp
-        flx_x0 = (
-            w_0 * inp[-3, 0]
-            + w_1 * inp[-2, 0]
-            + w_2 * inp[-1, 0]
-            + w_3 * inp[0, 0]
-            + w_4 * inp[1, 0]
-            + w_5 * inp[2, 0]
-        ) / dx
-        flx_x1 = (
-            w_0 * inp[-2, 0]
-            + w_1 * inp[-1, 0]
-            + w_2 * inp[0, 0]
-            + w_3 * inp[1, 0]
-            + w_4 * inp[2, 0]
-            + w_5 * inp[3, 0]
-        ) / dx
-        flx_y0 = (
-            w_0 * inp[0, -3]
-            + w_1 * inp[0, -2]
-            + w_2 * inp[0, -1]
-            + w_3 * inp[0, 0]
-            + w_4 * inp[0, 1]
-            + w_5 * inp[0, 2]
-        ) / dy
-        flx_y1 = (
-            w_0 * inp[0, -2]
-            + w_1 * inp[0, -1]
-            + w_2 * inp[0, 0]
-            + w_3 * inp[0, 1]
-            + w_4 * inp[0, 2]
-            + w_5 * inp[0, 3]
-        ) / dy
+class Horizontal(AbstractStencil):
+    @classmethod
+    def name(cls):
+        return "horizontal"
 
-        flx_x0 = flx_x0 * (0 if inp - inp[-1, 0] < 0 else flx_x0)
-        flx_x1 = flx_x1 * (0 if inp[1, 0] - inp < 0 else flx_x1)
-        flx_y0 = flx_y0 * (0 if inp - inp[0, -1] < 0 else flx_y0)
-        flx_y1 = flx_y1 * (0 if inp[0, 1] - inp < 0 else flx_y1)
+    @classmethod
+    def subroutines(cls):
+        return []
 
-        out = inp + coeff * dt * ((flx_x1 - flx_x0) / dx + (flx_y1 - flx_y0) / dy)
+    @staticmethod
+    def stencil_definition(out: _F64, inp: _F64, *, dx: DTYPE, dy: DTYPE, dt: DTYPE, coeff: DTYPE):
+        with computation(PARALLEL), interval(...):
+            w_0 = -1.0 / 90
+            w_1 = 5.0 / 36
+            w_2 = -49.0 / 36
+            w_3 = 49.0 / 36
+            w_4 = -5.0 / 36
+            w_5 = 1.0 / 90
+            out = inp
+            flx_x0 = (
+                w_0 * inp[-3, 0]
+                + w_1 * inp[-2, 0]
+                + w_2 * inp[-1, 0]
+                + w_3 * inp[0, 0]
+                + w_4 * inp[1, 0]
+                + w_5 * inp[2, 0]
+            ) / dx
+            flx_x1 = (
+                w_0 * inp[-2, 0]
+                + w_1 * inp[-1, 0]
+                + w_2 * inp[0, 0]
+                + w_3 * inp[1, 0]
+                + w_4 * inp[2, 0]
+                + w_5 * inp[3, 0]
+            ) / dx
+            flx_y0 = (
+                w_0 * inp[0, -3]
+                + w_1 * inp[0, -2]
+                + w_2 * inp[0, -1]
+                + w_3 * inp[0, 0]
+                + w_4 * inp[0, 1]
+                + w_5 * inp[0, 2]
+            ) / dy
+            flx_y1 = (
+                w_0 * inp[0, -2]
+                + w_1 * inp[0, -1]
+                + w_2 * inp[0, 0]
+                + w_3 * inp[0, 1]
+                + w_4 * inp[0, 2]
+                + w_5 * inp[0, 3]
+            ) / dy
+
+            flx_x0 = flx_x0 * (0 if inp - inp[-1, 0] < 0 else flx_x0)
+            flx_x1 = flx_x1 * (0 if inp[1, 0] - inp < 0 else flx_x1)
+            flx_y0 = flx_y0 * (0 if inp - inp[0, -1] < 0 else flx_y0)
+            flx_y1 = flx_y1 * (0 if inp[0, 1] - inp < 0 else flx_y1)
+
+            out = inp + coeff * dt * ((flx_x1 - flx_x0) / dx + (flx_y1 - flx_y0) / dy)
 
 
 @function

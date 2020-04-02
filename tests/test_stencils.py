@@ -54,8 +54,17 @@ class Simulation:
         self.time_step = 1e-3
         self.diffusion_coeff = 0.05
         self.backend = backend
-        self.data = self.make_storage(numpy.fromfunction(self.get_reference, shape=self.shape))
-        self.data1 = self.make_storage(numpy.zeros(self.shape))
+        self.stencil = diffusion.Horizontal(backend=self.backend)
+
+        storage_b = (
+            self.stencil.storage_builder()
+            .backend(self.backend)
+            .dtype(self.dtype)
+            .default_origin(TEST_ORIGIN)
+        )
+
+        self.data = storage_b.from_array(numpy.fromfunction(self.get_reference, shape=self.shape))
+        self.data1 = storage_b.from_array(numpy.zeros(self.shape))
         self.delta_x = self.dtype(self.domain[0]) / self.shape[0]
         self.delta_y = self.dtype(self.domain[1]) / self.shape[1]
         self.delta_t = self.time_step
@@ -69,9 +78,7 @@ class Simulation:
         )
 
     def make_storage(self, array):
-        return storage.from_array(
-            array, self.backend, default_origin=TEST_ORIGIN, dtype=self.dtype
-        )
+        return storage_b.from_array(array)
 
     def swap_data(self):
         tmp = self.data
@@ -80,9 +87,8 @@ class Simulation:
 
     def run(self):
         time = 0
-        stencil = gtscript.stencil(backend=self.backend, definition=diffusion.horizontal)
         while time < self.max_time:
-            stencil(
+            self.stencil(
                 self.data1,
                 self.data,
                 dx=self.delta_x,

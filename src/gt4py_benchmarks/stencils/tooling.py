@@ -36,7 +36,7 @@ class AbstractStencil(abc.ABC):
     """
 
     def __init__(self, *, backend="debug"):
-        self._backend = default_backend
+        self._backend = backend
         self._stencil = None
         self._externals = {}
 
@@ -76,7 +76,7 @@ class AbstractStencil(abc.ABC):
         Build the stencil, get ready to execute.
         """
         self._stencil = gtscript.stencil(
-            definition=self.stencil_definition, backend=backend, **kwargs
+            definition=self.stencil_definition, backend=self._backend, **kwargs
         )
         return self
 
