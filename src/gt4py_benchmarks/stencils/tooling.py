@@ -35,12 +35,12 @@ class AbstractStencil(abc.ABC):
     Another use-case is encapsulating algorithm detail state.
     """
 
-    def __init__(self, *, backend="debug"):
+    def __init__(self, *, backend="debug", **kwargs):
         self._backend = backend
         self._stencil = None
-        self._externals = {}
 
-    @abc.abstractstaticmethod
+    @staticmethod
+    @abc.abstractmethod
     def stencil_definition(*args, **kwargs):
         """
         This is where the stencil is defined.
@@ -50,14 +50,16 @@ class AbstractStencil(abc.ABC):
         """
         pass
 
-    @abc.abstractclassmethod
+    @classmethod
+    @abc.abstractmethod
     def subroutines(cls):
         """
         List stencil subroutines implemented in this class.
         """
         pass
 
-    @abc.abstractclassmethod
+    @classmethod
+    @abc.abstractmethod
     def name(cls) -> str:
         """
         Name the stencil for naming of subroutines externals when used by other stencils.
@@ -65,24 +67,48 @@ class AbstractStencil(abc.ABC):
         pass
 
     @classmethod
+    def uses(cls):
+        """List substencil classes used."""
+        return []
+
+    @classmethod
     def build_externals(cls) -> dict:
         """
         Build the externals dictionary
         """
-        return {sub.__name__: gtscript.function(sub) for sub in cls.subroutines()}
+        ext_dict = {}
+        for sub in cls.uses():
+            ext_dict.update(sub.externals())
+        ext_dict.update({sub.__name__: gtscript.function(sub) for sub in cls.subroutines()})
+        return ext_dict
 
     def build(self, **kwargs):
         """
         Build the stencil, get ready to execute.
         """
+        externals = self.build_externals()
+        externals.update(kwargs.pop("externals", {}))
         self._stencil = gtscript.stencil(
-            definition=self.stencil_definition, backend=self._backend, **kwargs
+            definition=self.stencil_definition,
+            backend=self._backend,
+            externals=externals,
+            **kwargs,
         )
         return self
 
-    def backend(self, backend):
-        self._backend = backend
-        return self
+    @property
+    def backend(self):
+        return self._backend
+
+    @abc.abstractmethod
+    def copy_data(self, other):
+        """Subclass hook for copying additional data"""
+        pass
+
+    def copy_with_backend(self, backend):
+        new = self.__class__(backend=backend)
+        new.copy_data(self)
+        return new
 
     def __call__(self, *args, **kwargs):
         """
@@ -93,4 +119,42 @@ class AbstractStencil(abc.ABC):
         self._stencil(*args, **kwargs)
 
     def storage_builder(self):
-        return StorageBuilder().backend(self.backend)
+        builder = StorageBuilder().backend(self.backend)
+        if hasattr(self, "SCALAR_T"):
+            builder = builder.dtype(self.SCALAR_T)
+        return builder
+
+
+class AbstractSubstencil:
+    @classmethod
+    @abc.abstractmethod
+    def name(cls):
+        return ""
+
+    @classmethod
+    def uses(cls):
+        """List substencil classes used."""
+        return []
+
+    @classmethod
+    def externals(cls):
+        ext_dict = {}
+        for sub in cls.uses():
+            ext_dict.update(sub.externals())
+        ext_dict.update(cls.subs())
+        return ext_dict
+
+    @classmethod
+    def subs(cls):
+        subroutines = (name for name in cls.__dict__ if name.startswith(cls.name()))
+        cls_subs = {name: gtscript.function(getattr(cls, name)) for name in subroutines}
+        return cls_subs
+
+
+def using(globals, *substencils):
+    def decorator(new_substencil):
+        for sub in substencils:
+            globals.update(sub.externals())
+        return new_substencil
+
+    return decorator
