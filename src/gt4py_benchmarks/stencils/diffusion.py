@@ -46,12 +46,21 @@ class Horizontal(AbstractStencil):
 
     @classmethod
     def subroutines(cls):
-        return []
+        return [cls.square_or_zero]
+
+    @staticmethod
+    def threshold(val, *, diff):
+        if val * diff < 0.0:
+            return 0.0
+        else:
+            return val
 
     @staticmethod
     def stencil_definition(
         out: FIELD_T, inp: FIELD_T, *, dx: SCALAR_T, dy: SCALAR_T, dt: SCALAR_T, coeff: SCALAR_T
     ):
+        from __externals__ import square_or_zero
+
         with computation(PARALLEL), interval(...):
             w_0 = -1.0 / 90.0
             w_1 = 5.0 / 36.0
@@ -60,48 +69,44 @@ class Horizontal(AbstractStencil):
             w_4 = -5.0 / 36.0
             w_5 = 1.0 / 90.0
             flx_x0 = (
-                w_0 * inp[-3, 0]
-                + w_1 * inp[-2, 0]
-                + w_2 * inp[-1, 0]
-                + w_3 * inp[0, 0]
-                + w_4 * inp[1, 0]
-                + w_5 * inp[2, 0]
+                (w_0 * inp[-3, 0])
+                + (w_1 * inp[-2, 0])
+                + (w_2 * inp[-1, 0])
+                + (w_3 * inp[0, 0])
+                + (w_4 * inp[1, 0])
+                + (w_5 * inp[2, 0])
             ) / dx
             flx_x1 = (
-                w_0 * inp[-2, 0]
-                + w_1 * inp[-1, 0]
-                + w_2 * inp[0, 0]
-                + w_3 * inp[1, 0]
-                + w_4 * inp[2, 0]
-                + w_5 * inp[3, 0]
+                (w_0 * inp[-2, 0])
+                + (w_1 * inp[-1, 0])
+                + (w_2 * inp[0, 0])
+                + (w_3 * inp[1, 0])
+                + (w_4 * inp[2, 0])
+                + (w_5 * inp[3, 0])
             ) / dx
             flx_y0 = (
-                w_0 * inp[0, -3]
-                + w_1 * inp[0, -2]
-                + w_2 * inp[0, -1]
-                + w_3 * inp[0, 0]
-                + w_4 * inp[0, 1]
-                + w_5 * inp[0, 2]
+                (w_0 * inp[0, -3])
+                + (w_1 * inp[0, -2])
+                + (w_2 * inp[0, -1])
+                + (w_3 * inp[0, 0])
+                + (w_4 * inp[0, 1])
+                + (w_5 * inp[0, 2])
             ) / dy
             flx_y1 = (
-                w_0 * inp[0, -2]
-                + w_1 * inp[0, -1]
-                + w_2 * inp[0, 0]
-                + w_3 * inp[0, 1]
-                + w_4 * inp[0, 2]
-                + w_5 * inp[0, 3]
+                (w_0 * inp[0, -2])
+                + (w_1 * inp[0, -1])
+                + (w_2 * inp[0, 0])
+                + (w_3 * inp[0, 1])
+                + (w_4 * inp[0, 2])
+                + (w_5 * inp[0, 3])
             ) / dy
 
-            flx_x0_tmp = flx_x0 * (0.0 if inp - inp[-1, 0] < 0.0 else flx_x0)
-            flx_x0 = flx_x0_tmp
-            flx_x1_tmp = flx_x1 * (0.0 if inp[1, 0] - inp < 0.0 else flx_x1)
-            flx_x1 = flx_x1_tmp
-            flx_y0_tmp = flx_y0 * (0.0 if inp - inp[0, -1] < 0.0 else flx_y0)
-            flx_y0 = flx_y0_tmp
-            flx_y1_tmp = flx_y1 * (0.0 if inp[0, 1] - inp < 0.0 else flx_y1)
-            flx_y1 = flx_y1_tmp
+            flx_x0 = threshold(flx_x0, diff=inp - inp[-1, 0])
+            flx_x1 = threshold(flx_x1, diff=(inp[1, 0] - inp))
+            flx_y0 = threshold(flx_y0, diff=(inp - inp[0, -1]))
+            flx_y1 = threshold(flx_y1, diff=(inp[0, 1] - inp))
 
-            out = inp + coeff * dt * ((flx_x1 - flx_x0) / dx + (flx_y1 - flx_y0) / dy)
+            out = inp + (coeff * dt * (((flx_x1 - flx_x0) / dx) + ((flx_y1 - flx_y0) / dy)))
 
     def __call__(self, out: FIELD_T, inp: FIELD_T, *, dt: SCALAR_T):
         super().__call__(out, inp, dx=self.dx, dy=self.dy, coeff=self.coeff, dt=dt)

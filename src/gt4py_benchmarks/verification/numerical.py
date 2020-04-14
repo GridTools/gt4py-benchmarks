@@ -37,15 +37,10 @@ class HorizontalDiffusion:
             numpy.sum(self.weight[i] * inp[:, (i + 1) : (-5 + i)] for i in range(0, 5)) / self.dy
         )
 
-        flx_x0 *= flx_x0
-        flx_x1 *= flx_x1
-        flx_y0 *= flx_y0
-        flx_y1 *= flx_y1
-
-        flx_x0 = numpy.where((inp[3:-3] - inp[2:-4]) < 0.0, 0.0, flx_x0)
-        flx_x1 = numpy.where((inp[4:-2] - inp[3:-3]) < 0.0, 0.0, flx_x1)
-        flx_y0 = numpy.where((inp[:, 3:-3] - inp[:, 2:-4]) < 0.0, 0.0, flx_y0)
-        flx_y1 = numpy.where((inp[:, 4:-2] - inp[:, 3:-3]) < 0.0, 0.0, flx_y1)
+        flx_x0 = numpy.where(flx_x0 * (inp[3:-3] - inp[2:-4]) < 1e-2, 0.0, flx_x0)
+        flx_x1 = numpy.where(flx_x1 * (inp[4:-2] - inp[3:-3]) < 1e-2, 0.0, flx_x1)
+        flx_y0 = numpy.where(flx_y0 * (inp[:, 3:-3] - inp[:, 2:-4]) < 1e-2, 0.0, flx_y0)
+        flx_y1 = numpy.where(flx_y1 * (inp[:, 4:-2] - inp[:, 3:-3]) < 1e-2, 0.0, flx_y1)
 
         out[3:-3, 3:-3] = inp[3:-3, 3:-3] + (
             self.coeff
