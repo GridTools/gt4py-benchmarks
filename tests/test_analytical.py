@@ -17,6 +17,11 @@ def gtbench_hdiff():
 
 
 @pytest.fixture
+def gtbench_vdiff():
+    yield numpy.load(DATA_DIR / "v_diff_t0_042.npy")
+
+
+@pytest.fixture
 def time():
     yield 0.042
 
@@ -37,5 +42,20 @@ def test_hdiff(gtbench_hdiff, time, diffusion_coeff):
     )
     data = numpy.fromfunction(get_value, shape=resolution)
     errs = gtbench_hdiff - data
+    max_err = errs.max()
+    assert max_err < 1e-6
+
+
+def test_vdiff(gtbench_vdiff, time, diffusion_coeff):
+    resolution = gtbench_vdiff.shape
+    print(f"resolution is: {resolution}")
+    map_domain = functools.partial(
+        analytical.map_domain, resolution=resolution, domain=analytical.DOMAIN
+    )
+    get_value = lambda i, j, k: analytical.vertical_diffusion(
+        *map_domain(i, j, k), diffusion_coeff=diffusion_coeff, time=time
+    )
+    data = numpy.fromfunction(get_value, shape=resolution)
+    errs = gtbench_vdiff - data
     max_err = errs.max()
     assert max_err < 1e-6

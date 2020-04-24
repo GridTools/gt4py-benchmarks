@@ -22,10 +22,29 @@ class StorageBuilder:
         self._kwargs["dtype"] = dtype
         return self
 
+    def shape(self, shape):
+        self._kwargs["shape"] = shape
+        return self
+
     def from_array(self, *args, **kwargs):
         keywords = self._kwargs.copy()
         keywords.update(kwargs)
         return storage.from_array(*args, **keywords)
+
+    def empty(self, *args, **kwargs):
+        keywords = self._kwargs.copy()
+        keywords.update(kwargs)
+        return storage.empty(*args, **keywords)
+
+    def zeros(self, *args, **kwargs):
+        keywords = self._kwargs.copy()
+        keywords.update(kwargs)
+        return storage.zeros(*args, **keywords)
+
+    def ones(self, *args, **kwargs):
+        keywords = self._kwargs.copy()
+        keywords.update(kwargs)
+        return storage.ones(*args, **keywords)
 
 
 class AbstractStencil(abc.ABC):

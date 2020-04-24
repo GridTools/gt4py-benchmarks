@@ -30,9 +30,9 @@ def has_cupy():
 @pytest.fixture(
     params=[
         "debug",
-        # "numpy",
+        "numpy",
         "gtx86",
-        # "gtmc",
+        "gtmc",
         pytest.param(
             "gtcuda",
             marks=pytest.mark.skipif(
@@ -135,4 +135,4 @@ def test_diff(test_backend, diffusion_sim):
     print(f"The mean_abs(exact[t] - exact[t=0]) is: {mean_change}")
     print(f"The mean error is: {errors.mean()}")
     assert (sim.data != start_data).any() and (sim.data1 != start_data).any()
-    assert errors.max() < 1e-5
+    assert errors.max() < 5e-5

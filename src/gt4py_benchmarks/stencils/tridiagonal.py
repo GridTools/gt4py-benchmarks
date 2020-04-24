@@ -164,13 +164,7 @@ class PeriodicForward2(AbstractSubstencil):
     @staticmethod
     def periodic_forward2_0_1(a, b, c, u, alpha, gamma):
         u = gamma
-
-        ## inlining
-        ## c, u = forward_0_1(a, b, c, u)
-        c = c / b
-        u = u / b
-        ## end inlining forward_0_1
-
+        c, u = forward_0_1(a, b, c, u)
         return c, u
 
     @staticmethod
@@ -179,11 +173,11 @@ class PeriodicForward2(AbstractSubstencil):
 
         ## inlining
         ## c, u = forward_1_last(a, b, c, u)
-        c = c / (b - c[0, 0, -1] * a)
-        u = (u - a * u[0, 0, -1]) / (b - c[0, 0, -1] * a)
+        # c = c / (b - c[0, 0, -1] * a)
+        # u = (u - a * u[0, 0, -1]) / (b - c[0, 0, -1] * a)
         ## end inlining forward_1_last
 
-        return c, u
+        return u
 
     @staticmethod
     def periodic_forward2_m1_last(a, b, c, u, alpha, gamma):
@@ -191,11 +185,11 @@ class PeriodicForward2(AbstractSubstencil):
 
         # inlining
         ## c, u = forward_1_last(a, b, c, u)
-        c = c / (b - c[0, 0, -1] * a)
-        u = (u - a * u[0, 0, -1]) / (b - c[0, 0, -1] * a)
+        # c = c / (b - c[0, 0, -1] * a)
+        # u = (u - a * u[0, 0, -1]) / (b - c[0, 0, -1] * a)
         ## end inlining forward_1_last
 
-        return c, u
+        return u
 
 
 class Backward(AbstractSubstencil):
@@ -283,18 +277,17 @@ class PeriodicBackward2(AbstractSubstencil):
         return [Backward]
 
     @staticmethod
-    def periodic_backward2_0_1(z, c, d, x, beta, gamma, z_top, x_top):
-        z = backward_0_m1(z, c, d)
-        fact = x + beta * x_top / gamma / (1 + z + beta * z_top / gamma)
-        return z, fact
+    def periodic_backward2_0_1(*, z, c, d, x, beta, gamma, z_top, x_top):
+        fact = (x + beta * x_top / gamma) / (1.0 + z + beta * z_top / gamma)
+        return fact
 
     @staticmethod
-    def periodic_backward2_1_m1(z, c, d):
+    def periodic_backward2_1_m1(*, z, c, d):
         z = backward_0_m1(z, c, d)
         return z
 
     @staticmethod
-    def periodic_backward2_m1_last(d, x):
+    def periodic_backward2_m1_last(*, d, x):
         z = backward_m1_last(d)
         z_top = z
         x_top = x
