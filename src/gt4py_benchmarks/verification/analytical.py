@@ -2,6 +2,7 @@ import numpy
 
 
 DOMAIN = tuple([4 * numpy.pi] * 3)
+AD_DOMAIN = (2 * numpy.pi, 2 * numpy.pi * numpy.sqrt(2.0), 2 * numpy.pi * numpy.sqrt(2.0))
 
 
 def map_domain(
@@ -39,7 +40,7 @@ def full_diffusion(x: float, y: float, z: float, *, diffusion_coeff: float, time
 ## horizontal advection velocity: (5, -2, 0)
 def horizontal_advection(x: float, y: float, z: float, *, time: float):
     """Calculate horizontal advection reference value at given coordinates and time."""
-    return numpy.sin(x - 5 * t) * numpy.cos(y + 2 * time) * numpy.cos(z)
+    return numpy.sin(x - 5 * time) * numpy.cos(y + 2 * time) * numpy.cos(z)
 
 
 ## vertical advection velocity: (0, 0, 3)
@@ -55,5 +56,6 @@ def full_advection(x: float, y: float, z: float, *, time: float):
 
 
 def advection_diffusion(x: float, y: float, z: float, *, diffusion_coeff: float, time: float):
-    a = numpy.sqrt(2) / 2
-    return -numpy.sin(x) * numpy.sin(a * (y - z)) * numpy.exp(-2 * diffusion_coeff * time)
+    """Calculate advection-diffusion reference value for given coordinates, diffusion coefficient and time."""
+    a = numpy.sqrt(2.0) / 2.0
+    return -numpy.sin(x) * numpy.sin(a * (y - z)) * numpy.exp(-2.0 * diffusion_coeff * time)
