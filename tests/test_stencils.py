@@ -141,6 +141,8 @@ class AdvectionSim(DiffusionSim):
         stencil_cls, reference = None, None
         if direction == "horizontal":
             stencil_cls, reference = advection.Horizontal, analytical.horizontal_advection
+        elif direction == "vertical":
+            stencil_cls, reference = advection.Vertical, analytical.vertical_advection
 
         dtype = stencil_cls.SCALAR_T
         dspace = numpy.array(analytical.DOMAIN, dtype=dtype) / numpy.array(shape, dtype=dtype)
@@ -160,7 +162,7 @@ def diffusion_dir_tol(request):
     yield request.param
 
 
-@pytest.fixture(params=[("horizontal", 2e-3)])
+@pytest.fixture(params=[("horizontal", 2e-3), ("vertical", 3e-3)])
 def advection_dir_tol(request):
     yield request.param
 
@@ -221,7 +223,10 @@ def test_adv(test_backend, advection_sim_tol):
     sim.run()
     errors = numpy.abs(expected - sim.data)[3:-3, 3:-3, 1:-1]
     mean_change = numpy.abs(start_data - expected)[3:-3, 3:-3, 1:-1].mean()
+    max_data_change = numpy.abs(start_data - sim.data)[3:-3, 3:-3, 1:-1].max()
+    max_data1_change = numpy.abs(start_data - sim.data1)[3:-3, 3:-3, 1:-1].max()
     print(f"The mean_abs(exact[t] - exact[t=0]) is: {mean_change}")
+    print(f"The max_abs(approx[t] - exact[t=0]) is: {max_data_change}")
     print(f"The mean error is: {errors.mean()}")
-    assert (sim.data != start_data).any() and (sim.data1 != start_data).any()
+    assert (max_data_change > 1e-28) and (max_data1_change > 1e-28)
     assert errors.max() < tolerance
