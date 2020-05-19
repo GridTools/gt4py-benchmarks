@@ -1,7 +1,12 @@
-from numpy import float64, array
+"""
+Diffusion stencils.
+
+Ported from GTBench by Rico Häuselmann <ricoh@cscs.ch>.
+"""
 from functools import update_wrapper, partial
 from typing import Sequence
 
+from numpy import float64
 from gt4py.gtscript import (
     Field,
     computation,
@@ -10,24 +15,19 @@ from gt4py.gtscript import (
     BACKWARD,
     PARALLEL,
     stencil,
-    function,
 )
-from gt4py.storage import empty
 
-from gt4py_benchmarks.config import GT_BACKEND, STENCIL_VERBOSE
 from gt4py_benchmarks.stencils import tridiagonal
 from gt4py_benchmarks.stencils.tooling import AbstractStencil, AbstractSubstencil, using
 
 
 DTYPE = float64
-_F64 = Field[DTYPE]
-STENCIL = update_wrapper(partial(stencil, backend=GT_BACKEND, verbose=STENCIL_VERBOSE), stencil)
 
 
 class Horizontal(AbstractStencil):
     """Horizontal diffusion stencil."""
 
-    SCALAR_T = float64
+    SCALAR_T = DTYPE
     FIELD_T = Field[SCALAR_T]
 
     def __init__(self, *, dspace: Sequence[SCALAR_T], coeff: SCALAR_T, backend="debug", **kwargs):
@@ -43,7 +43,7 @@ class Horizontal(AbstractStencil):
 
     @classmethod
     def name(cls):
-        return "horizontal"
+        return "horizontal_diffusion"
 
     @classmethod
     def subroutines(cls):
@@ -318,7 +318,7 @@ class DiffusionWF1(AbstractSubstencil):
 class Vertical(AbstractStencil):
     """Vertical diffusion stencil."""
 
-    SCALAR_T = float64
+    SCALAR_T = DTYPE
     FIELD_T = Field[SCALAR_T]
 
     def __init__(self, *, dspace: Sequence[SCALAR_T], coeff: SCALAR_T, backend="debug", **kwargs):
@@ -332,7 +332,7 @@ class Vertical(AbstractStencil):
 
     @classmethod
     def name(cls):
-        return "vertical"
+        return "vertical_diffusion"
 
     @classmethod
     def subroutines(cls):
@@ -480,3 +480,28 @@ class Vertical(AbstractStencil):
 
     def __call__(self, out: FIELD_T, inp: FIELD_T, *, dt: SCALAR_T):
         super().__call__(out, inp, dz=self.dz, coeff=self.coeff, dt=dt)
+
+
+class Full:
+    """Full diffusion stepper."""
+
+    SCALAR_T = DTYPE
+    FIELD_T = Field[SCALAR_T]
+
+    def __init__(self, *, dspace: Sequence[SCALAR_T], coeff: SCALAR_T, backend="debug", **kwargs):
+        self.backend = backend
+        self.dspace = dspace
+        self.coeff = coeff
+        self.horizontal = Horizontal(dspace=dspace, coeff=coeff, backend=backend, **kwargs)
+        self.vertical = Vertical(dspace=dspace, coeff=coeff, backend=backend, **kwargs)
+
+    def __call__(self, out: FIELD_T, inp: FIELD_T, *, dt: SCALAR_T):
+        self.horizontal(out, inp, dt=dt)
+        self.vertical(out, inp, dt=dt)
+
+    @classmethod
+    def name(cls):
+        return "full_diffusion"
+
+    def storage_builder(self):
+        return self.horizontal.storage_builder()

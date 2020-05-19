@@ -49,6 +49,14 @@ class HorizontalDiffusion:
             * (((flx_x1 - flx_x0)[:, 3:-3] / self.dx) + ((flx_y1 - flx_y0)[3:-3] / self.dy))
         )
 
+    def run(self, out, inp, *, dt, tmax):
+        for t in numpy.arange(0, tmax + dt, dt):
+            self(out, inp, dt=dt)
+            tmp = out
+            out = inp
+            inp = tmp
+        return out
+
     def storage_builder(self):
         return StorageBuilder().backend("numpy").dtype(self.SCALAR_T)
 
