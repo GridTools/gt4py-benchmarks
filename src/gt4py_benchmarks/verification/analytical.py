@@ -1,3 +1,4 @@
+"""Analytical reference functions and discretization utils."""
 import numpy
 
 
@@ -15,6 +16,7 @@ def map_domain(
     halo: float = 3,
     offset: tuple = (0, 0),
 ):
+    """Map the analytical to the computational spacial domain."""
     x = (i - halo + offset[0]) * domain[0] / resolution[0]
     y = (j - halo + offset[1]) * domain[1] / resolution[1]
     z = k * domain[2] / resolution[2]
