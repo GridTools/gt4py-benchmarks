@@ -22,40 +22,40 @@ def map_domain(
 
 
 def horizontal_diffusion(x: float, y: float, z: float, *, diffusion_coeff: float, time: float):
-    """Calculate horizontal diffusion reference value at given coordinates and time with given diffusion coefficient."""
+    """Calculate horizontal diffusion reference value."""
     return numpy.sin(x) * numpy.cos(y) * numpy.exp(-2 * diffusion_coeff * time)
 
 
 def vertical_diffusion(x: float, y: float, z: float, *, diffusion_coeff: float, time: float):
-    """Calculate vertical diffusion reference value at given coordinates and time with given diffusion coefficient."""
-    del x, y  ## not needed but kept for unity of interface
+    """Calculate vertical diffusion reference value."""
+    del x, y  # not needed but kept for unity of interface
     return numpy.cos(z) * numpy.exp(-diffusion_coeff * time)
 
 
 def full_diffusion(x: float, y: float, z: float, *, diffusion_coeff: float, time: float):
-    """Calculate full diffusion reference value for given coordinates, time and diffusion coefficient."""
+    """Calculate full diffusion reference value."""
     return numpy.sin(x) * numpy.cos(y) * numpy.cos(z) * numpy.exp(-3 * diffusion_coeff * time)
 
 
-## horizontal advection velocity: (5, -2, 0)
+# horizontal advection velocity: (5, -2, 0)
 def horizontal_advection(x: float, y: float, z: float, *, time: float):
     """Calculate horizontal advection reference value at given coordinates and time."""
     return numpy.sin(x - 5 * time) * numpy.cos(y + 2 * time) * numpy.cos(z)
 
 
-## vertical advection velocity: (0, 0, 3)
+# vertical advection velocity: (0, 0, 3)
 def vertical_advection(x: float, y: float, z: float, *, time: float):
     """Calculate vertical advection reference value at given coordinates and time."""
     return numpy.sin(x) * numpy.cos(y) * numpy.cos(z - 3 * time)
 
 
-## full advection velocity: (5, -2, 3)
+# full advection velocity: (5, -2, 3)
 def full_advection(x: float, y: float, z: float, *, time: float):
     """Calculate full advection reference value at given coordinates and time."""
     return numpy.sin(x - 5 * time) * numpy.cos(y + 2 * time) * numpy.cos(z - 3 * time)
 
 
 def advection_diffusion(x: float, y: float, z: float, *, diffusion_coeff: float, time: float):
-    """Calculate advection-diffusion reference value for given coordinates, diffusion coefficient and time."""
+    """Calculate advection-diffusion reference value."""
     a = numpy.sqrt(2.0) / 2.0
     return -numpy.sin(x) * numpy.sin(a * (y - z)) * numpy.exp(-2.0 * diffusion_coeff * time)
