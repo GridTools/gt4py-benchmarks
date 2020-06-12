@@ -1,10 +1,11 @@
+"""Test the stencils for correctness agains the exact validation functions."""
+import copy
 import functools
 
-from gt4py import gtscript, storage
+from gt4py import gtscript
 import numpy
 import pytest
 
-from gt4py_benchmarks import config
 from gt4py_benchmarks.stencils import diffusion, advection
 from gt4py_benchmarks.verification import analytical
 
@@ -19,8 +20,9 @@ TEST_DTYPE = numpy.float64
 
 
 def has_cupy():
+    """Test whether `cupy` is importable."""
     try:
-        import cupy
+        import cupy  # noqa (import is required to determine wether to run tests for cuda backends)
 
         return True
     except ImportError:
@@ -31,8 +33,8 @@ def has_cupy():
     params=[
         "debug",
         "numpy",
-        # "gtx86",
-        # "gtmc",
+        "gtx86",
+        "gtmc",
         pytest.param(
             "gtcuda",
             marks=pytest.mark.skipif(
@@ -42,191 +44,157 @@ def has_cupy():
     ]
 )
 def test_backend(request):
+    """Parametrize by backend name."""
     yield request.param
 
 
-class DiffusionSim:
-    def __init__(self, shape, *, stencil, reference, time_step=1e-3, max_time=1e-2):
-        self.dtype = TEST_DTYPE
+class Simulation:
+    """Wrap stencil and reference into a simulation to verify convergence."""
+
+    def __init__(self, test_spec: dict, *, backend: str):
+        """Construct from a test specification and the backend fixture."""
         self.domain = analytical.DOMAIN
-        self.shape = shape
-        self.dspace = numpy.array(self.domain, dtype=float) / numpy.array(self.shape, dtype=float)
-        self.max_time = max_time
-        self.time_step = time_step
-
-        self.stencil = stencil
-        self.reference = reference
-
-        storage_b = (
-            self.stencil.storage_builder()
-            .backend(self.stencil.backend)
-            .dtype(self.stencil.SCALAR_T)
-            .default_origin(TEST_ORIGIN)
+        self.time_step = 1e-3
+        self.max_time = 1e-2
+        self.shape = (16, 16, 16)
+        self.backend_name = backend
+        self.tolerance = test_spec["tolerance"]
+        dspace = numpy.array(analytical.DOMAIN, dtype=numpy.float64) / numpy.array(
+            self.shape, dtype=numpy.float64
         )
+        stencil_args = {
+            "backend": self.backend_name,
+            "dspace": dspace,
+            "time_step": self.time_step,
+        }
+        stencil_args.update(test_spec.get("extra-args", {}))
+        self.extra_args = test_spec.get("extra-args", {})
+        self.stencil = test_spec["stencil"](**stencil_args)
+        self.reference = test_spec["reference"]
+        storage_b = self.stencil.storage_builder().default_origin(TEST_ORIGIN)
 
         self.data = storage_b.from_array(numpy.fromfunction(self.get_reference, shape=self.shape))
-        self.data1 = storage_b.from_array(numpy.fromfunction(self.get_reference, shape=self.shape))
-
-    def map_to_domain(self, i, j, k):
-        return analytical.map_domain(i, j, k, resolution=self.shape, domain=self.domain)
-
-    def get_reference(self, i, j, k, time=0):
-        return self.reference(
-            *self.map_to_domain(i, j, k), diffusion_coeff=self.stencil.coeff, time=time
+        self.data1 = copy.deepcopy(self.data)
+        self._initial_state = copy.deepcopy(self.data)
+        self._expected = numpy.fromfunction(
+            functools.partial(self.get_reference, time=self.max_time), shape=self.shape
         )
 
-    def swap_data(self):
-        tmp = self.data
-        self.data = self.data1
-        self.data1 = tmp
-
     def run(self):
+        """Run the simulation until `self.max_time`."""
         time = 0
         while time <= self.max_time:
             self.stencil(
                 self.data1, self.data, dt=self.time_step,
             )
-            self.swap_data()
-            time += self.time_step
-
-    @classmethod
-    def from_direction(
-        cls, direction, *, shape, backend, coeff=0.05, time_step=1e-3, max_time=1e-2
-    ):
-        stencil_cls, reference = None, None
-        if direction == "horizontal":
-            stencil_cls, reference = diffusion.Horizontal, analytical.horizontal_diffusion
-        elif direction == "vertical":
-            stencil_cls, reference = diffusion.Vertical, analytical.vertical_diffusion
-        elif direction == "full":
-            stencil_cls, reference = diffusion.Full, analytical.full_diffusion
-
-        dtype = stencil_cls.SCALAR_T
-        dspace = numpy.array(analytical.DOMAIN, dtype=dtype) / numpy.array(shape, dtype=dtype)
-        stencil_args = {
-            "backend": backend,
-            "dspace": dspace,
-            "coeff": coeff,
-            "time_step": time_step,
-        }
-
-        return cls(
-            shape,
-            stencil=stencil_cls(**stencil_args),
-            reference=reference,
-            time_step=time_step,
-            max_time=max_time,
-        )
-
-    def __repr__(self):
-        return f"<DiffusionSim: stencil = {self.stencil.name()}, ref = {self.reference.__name__}>"
-
-
-class AdvectionSim(DiffusionSim):
-    def run(self):
-        time = 0
-        while time <= self.max_time:
-            self.stencil(self.data1, self.data, dt=self.time_step)
-            self.swap_data()
+            self._swap_data()
             time += self.time_step
 
     def __repr__(self):
-        return f"<AdvectionSim: stencil = {self.stencil.name()}, ref = {self.reference.__name__}>"
-
-    def get_reference(self, i, j, k, time=0):
-        return self.reference(*self.map_to_domain(i, j, k), time=time)
-
-    @classmethod
-    def from_direction(cls, direction, *, shape, backend, time_step=1e-3, max_time=1e-2):
-        stencil_cls, reference = None, None
-        if direction == "horizontal":
-            stencil_cls, reference = advection.Horizontal, analytical.horizontal_advection
-        elif direction == "vertical":
-            stencil_cls, reference = advection.Vertical, analytical.vertical_advection
-
-        dtype = stencil_cls.SCALAR_T
-        dspace = numpy.array(analytical.DOMAIN, dtype=dtype) / numpy.array(shape, dtype=dtype)
-        stencil_args = {"backend": backend, "dspace": dspace, "time_step": time_step}
-
-        return cls(
-            shape,
-            stencil=stencil_cls(**stencil_args),
-            reference=reference,
-            time_step=time_step,
-            max_time=max_time,
+        """Build a helpful string representation in case a test fails."""
+        return (
+            f"<Simulation: stencil = {self.stencil.name()} "
+            f"@ {self.backend_name} vs. {self.reference.__name__}>"
         )
 
+    def map_to_domain(self, i: int, j: int, k: int):
+        """Map from IJK coordinates to XYZ."""
+        return analytical.map_domain(i, j, k, resolution=self.shape, domain=self.domain)
 
-@pytest.fixture(params=[("horizontal", 1e-5), ("vertical", 5e-5), ("full", 2e-3)])
-def diffusion_dir_tol(request):
+    def get_reference(self, i: int, j: int, k: int, time: float = 0.0):
+        """Get reference values at IJK grid points."""
+        return self.reference(*self.map_to_domain(i, j, k), time=time, **self.extra_args)
+
+    def _swap_data(self):
+        """Swap input and output buffers after time step."""
+        tmp = self.data
+        self.data = self.data1
+        self.data1 = tmp
+
+    @property
+    def expected(self):
+        """Construct the reference values on the grid at `t=max_time`."""
+        return self._expected[3:-3, 3:-3, 1:-1]
+
+    @property
+    def result(self):
+        """Return the current result at `t=current_time`."""
+        return self.data[3:-3, 3:-3, 1:-1]
+
+    @property
+    def initial(self):
+        """Return the initial state."""
+        return self._initial_state[3:-3, 3:-3, 1:-1]
+
+    @property
+    def change(self):
+        """Return the absolute differences between initial and current state."""
+        return numpy.abs(self.initial - self.result)
+
+    @property
+    def expected_change(self):
+        """Return the absolute difference between the expected result and the initial state."""
+        return numpy.abs(self.expected - self.initial)
+
+    @property
+    def errors(self):
+        """Return the absolute differences between current and expected state."""
+        return numpy.abs(self.expected - self.result)
+
+
+CASES = {
+    "horizontal-diffusion": {
+        "stencil": diffusion.Horizontal,
+        "reference": analytical.horizontal_diffusion,
+        "tolerance": 1e-5,
+        "extra-args": {"coeff": 0.05},
+    },
+    "vertical-diffusion": {
+        "stencil": diffusion.Vertical,
+        "reference": analytical.vertical_diffusion,
+        "tolerance": 5e-5,
+        "extra-args": {"coeff": 0.05},
+    },
+    "full-diffusion": {
+        "stencil": diffusion.Full,
+        "reference": analytical.full_diffusion,
+        "tolerance": 2e-3,
+        "extra-args": {"coeff": 0.05},
+    },
+    "horizontal-advection": {
+        "stencil": advection.Horizontal,
+        "reference": analytical.horizontal_advection,
+        "tolerance": 2e-3,
+    },
+    "vertical-advection": {
+        "stencil": advection.Vertical,
+        "reference": analytical.vertical_advection,
+        "tolerance": 3e-3,
+    },
+}
+
+
+@pytest.fixture(params=CASES.items())
+def simulation_spec(request):
+    """Parametrize by test case simulation specification."""
     yield request.param
 
 
-@pytest.fixture(params=[("horizontal", 2e-3), ("vertical", 3e-3)])
-def advection_dir_tol(request):
-    yield request.param
-
-
 @pytest.fixture
-def diffusion_sim_tol(test_backend, diffusion_dir_tol):
-    shape = (16, 16, 16)
-    direction, tolerance = diffusion_dir_tol
-    sim = DiffusionSim.from_direction(
-        direction, shape=shape, backend=test_backend, coeff=0.05, time_step=1e-3
-    )
-    yield sim, tolerance
+def simulation(test_backend, simulation_spec):
+    """Yield all the stencil simulations to be tested with associated accuracy tolerance."""
+    yield Simulation(simulation_spec[1], backend=test_backend)
 
 
-@pytest.fixture
-def advection_sim_tol(test_backend, advection_dir_tol):
-    shape = (16, 16, 16)
-    direction, tolerance = advection_dir_tol
-    sim = AdvectionSim.from_direction(
-        direction, shape=shape, backend=test_backend, time_step=1e-3, max_time=1e-2
-    )
-    yield sim, tolerance
-
-
-@pytest.fixture
-def sim_tol(diffusion_sim_tol, advection_sim_tol):
-    yield from diffusion_sim_tol
-    yield from advection_sim_tol
-
-
-def test_diff(test_backend, diffusion_sim_tol):
+def test_stencil(simulation):
     """Test that diffusion stencil stays within tolerance of reference."""
-    import copy
-
-    sim, tolerance = diffusion_sim_tol
-    start_data = copy.deepcopy(sim.data)
-    expected = numpy.fromfunction(
-        functools.partial(sim.get_reference, time=sim.max_time), shape=sim.shape
-    )
+    sim = simulation
     sim.run()
-    errors = numpy.abs(expected - sim.data)[3:-3, 3:-3, 1:-1]
-    mean_change = numpy.abs(start_data - expected)[3:-3, 3:-3, 1:-1].mean()
-    print(f"The mean_abs(exact[t] - exact[t=0]) is: {mean_change}")
-    print(f"The mean error is: {errors.mean()}")
-    assert (sim.data != start_data).any() and (sim.data1 != start_data).any()
-    assert errors.max() < tolerance
-
-
-def test_adv(test_backend, advection_sim_tol):
-    """Test that diffusion stencil stays within tolerance of reference."""
-    import copy
-
-    sim, tolerance = advection_sim_tol
-    start_data = copy.deepcopy(sim.data)
-    expected = numpy.fromfunction(
-        functools.partial(sim.get_reference, time=sim.max_time), shape=sim.shape
-    )
-    sim.run()
-    errors = numpy.abs(expected - sim.data)[3:-3, 3:-3, 1:-1]
-    mean_change = numpy.abs(start_data - expected)[3:-3, 3:-3, 1:-1].mean()
-    max_data_change = numpy.abs(start_data - sim.data)[3:-3, 3:-3, 1:-1].max()
-    max_data1_change = numpy.abs(start_data - sim.data1)[3:-3, 3:-3, 1:-1].max()
+    mean_error = sim.errors.mean()
+    mean_change = sim.expected_change.mean()
+    max_data_change = sim.change.max()
     print(f"The mean_abs(exact[t] - exact[t=0]) is: {mean_change}")
     print(f"The max_abs(approx[t] - exact[t=0]) is: {max_data_change}")
-    print(f"The mean error is: {errors.mean()}")
-    assert (max_data_change > 1e-28) and (max_data1_change > 1e-28)
-    assert errors.max() < tolerance
+    print(f"The mean error is: {mean_error}")
+    assert max_data_change > 1e-28
+    assert sim.errors.max() == pytest.approx(0.0, abs=sim.tolerance)

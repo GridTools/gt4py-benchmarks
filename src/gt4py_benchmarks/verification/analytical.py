@@ -23,20 +23,20 @@ def map_domain(
     return x, y, z
 
 
-def horizontal_diffusion(x: float, y: float, z: float, *, diffusion_coeff: float, time: float):
+def horizontal_diffusion(x: float, y: float, z: float, *, coeff: float, time: float):
     """Calculate horizontal diffusion reference value."""
-    return numpy.sin(x) * numpy.cos(y) * numpy.exp(-2 * diffusion_coeff * time)
+    return numpy.sin(x) * numpy.cos(y) * numpy.exp(-2 * coeff * time)
 
 
-def vertical_diffusion(x: float, y: float, z: float, *, diffusion_coeff: float, time: float):
+def vertical_diffusion(x: float, y: float, z: float, *, coeff: float, time: float):
     """Calculate vertical diffusion reference value."""
     del x, y  # not needed but kept for unity of interface
-    return numpy.cos(z) * numpy.exp(-diffusion_coeff * time)
+    return numpy.cos(z) * numpy.exp(-coeff * time)
 
 
-def full_diffusion(x: float, y: float, z: float, *, diffusion_coeff: float, time: float):
+def full_diffusion(x: float, y: float, z: float, *, coeff: float, time: float):
     """Calculate full diffusion reference value."""
-    return numpy.sin(x) * numpy.cos(y) * numpy.cos(z) * numpy.exp(-3 * diffusion_coeff * time)
+    return numpy.sin(x) * numpy.cos(y) * numpy.cos(z) * numpy.exp(-3 * coeff * time)
 
 
 # horizontal advection velocity: (5, -2, 0)
@@ -57,7 +57,7 @@ def full_advection(x: float, y: float, z: float, *, time: float):
     return numpy.sin(x - 5 * time) * numpy.cos(y + 2 * time) * numpy.cos(z - 3 * time)
 
 
-def advection_diffusion(x: float, y: float, z: float, *, diffusion_coeff: float, time: float):
+def advection_diffusion(x: float, y: float, z: float, *, coeff: float, time: float):
     """Calculate advection-diffusion reference value."""
     a = numpy.sqrt(2.0) / 2.0
-    return -numpy.sin(x) * numpy.sin(a * (y - z)) * numpy.exp(-2.0 * diffusion_coeff * time)
+    return -numpy.sin(x) * numpy.sin(a * (y - z)) * numpy.exp(-2.0 * coeff * time)
