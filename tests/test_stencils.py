@@ -19,6 +19,43 @@ TEST_ORIGIN = (3, 3, 0)
 TEST_DTYPE = numpy.float64
 
 
+CASES = {
+    "horizontal-diffusion": {
+        "stencil": diffusion.Horizontal,
+        "reference": analytical.horizontal_diffusion,
+        "tolerance": 1e-5,
+        "extra-args": {"coeff": 0.05},
+    },
+    "vertical-diffusion": {
+        "stencil": diffusion.Vertical,
+        "reference": analytical.vertical_diffusion,
+        "tolerance": 5e-5,
+        "extra-args": {"coeff": 0.05},
+    },
+    "full-diffusion": {
+        "stencil": diffusion.Full,
+        "reference": analytical.full_diffusion,
+        "tolerance": 2e-3,
+        "extra-args": {"coeff": 0.05},
+    },
+    "horizontal-advection": {
+        "stencil": advection.Horizontal,
+        "reference": analytical.horizontal_advection,
+        "tolerance": 2e-3,
+    },
+    "vertical-advection": {
+        "stencil": advection.Vertical,
+        "reference": analytical.vertical_advection,
+        "tolerance": 3e-3,
+    },
+    "full-advection": {
+        "stencil": advection.Full,
+        "reference": analytical.full_advection,
+        "tolerance": 5e-2,
+    },
+}
+
+
 def has_cupy():
     """Test whether `cupy` is importable."""
     try:
@@ -140,38 +177,6 @@ class Simulation:
     def errors(self):
         """Return the absolute differences between current and expected state."""
         return numpy.abs(self.expected - self.result)
-
-
-CASES = {
-    "horizontal-diffusion": {
-        "stencil": diffusion.Horizontal,
-        "reference": analytical.horizontal_diffusion,
-        "tolerance": 1e-5,
-        "extra-args": {"coeff": 0.05},
-    },
-    "vertical-diffusion": {
-        "stencil": diffusion.Vertical,
-        "reference": analytical.vertical_diffusion,
-        "tolerance": 5e-5,
-        "extra-args": {"coeff": 0.05},
-    },
-    "full-diffusion": {
-        "stencil": diffusion.Full,
-        "reference": analytical.full_diffusion,
-        "tolerance": 2e-3,
-        "extra-args": {"coeff": 0.05},
-    },
-    "horizontal-advection": {
-        "stencil": advection.Horizontal,
-        "reference": analytical.horizontal_advection,
-        "tolerance": 2e-3,
-    },
-    "vertical-advection": {
-        "stencil": advection.Vertical,
-        "reference": analytical.vertical_advection,
-        "tolerance": 3e-3,
-    },
-}
 
 
 @pytest.fixture(params=CASES.items())

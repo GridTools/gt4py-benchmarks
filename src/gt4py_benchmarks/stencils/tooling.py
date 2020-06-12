@@ -116,7 +116,7 @@ class AbstractStencil(abc.ABC):
         return []
 
     @classmethod
-    def build_externals(cls) -> dict:
+    def externals(cls) -> dict:
         """Build the externals dictionary."""
         ext_dict = {}
         for sub in cls.uses():
@@ -126,7 +126,7 @@ class AbstractStencil(abc.ABC):
 
     def build(self, **kwargs):
         """Build the stencil, get ready to execute."""
-        externals = self.build_externals()
+        externals = self.externals()
         externals.update(kwargs.pop("externals", {}))
         self._stencil = gtscript.stencil(
             definition=self.stencil_definition(),
