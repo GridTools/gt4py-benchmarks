@@ -1,2 +1,0 @@
-GT_BACKEND = "numpy"
-STENCIL_VERBOSE = False
