@@ -154,9 +154,19 @@ class AbstractStencil(abc.ABC):
 
     def _call(self, *args, **kwargs):
         """Execute the internal gtscripts stencil."""
+        self._stencil(*args, **kwargs)
+
+    @property
+    def stencil_obj(self):
+        """Return compiled stencil object, only compiling the first time."""
         if self._stencil is None:
             self.build()
-        self._stencil(*args, **kwargs)
+        return self._stencil
+
+    def min_origin(self):
+        """Get minimum origin for this stencil (assume `inp` input field is indicative of all)."""
+        print(self.stencil_obj.field_info)
+        return tuple(max(i[0], i[1]) for i in self.stencil_obj.field_info["inp"].boundary)
 
     def storage_builder(self):
         """Create a preconfigured storage builder."""

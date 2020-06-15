@@ -272,15 +272,15 @@ class DiffusionWF1(AbstractSubstencil):
             a, b, c, alpha, beta, gamma = diffusion_wf1_init(dz=dz, coeff=coeff, dt=dt)
         with computation(FORWARD):
             with interval(0, 1):
-                b, c, d = diffusion_wf1_0_1(data_in, data_last, a=a, b=b, c=c, alpha=alpha,
+                b, c, d = diffusion_wf1_0_1(inp, data_last, a=a, b=b, c=c, alpha=alpha,
                                             beta=beta, gamma=gamma, dz=dz, dt=dt, coeff=coeff,)
             with interval(1, -1):
-                d = diffusion_wf1_1_m1(data_in, a=a, b=b, c=c, alpha=alpha,
+                d = diffusion_wf1_1_m1(inp, a=a, b=b, c=c, alpha=alpha,
                                        beta=beta, gamma=gamma, dz=dz, dt=dt, coeff=coeff,)
                 c = dwf1_helper_c_forward(a=a, b=b, c=c)
                 d = dwf1_helper_d_forward(a=a, b=b, c=c, d=d)
             with interval(-1, None):
-                b, d = diffusion_wf1_m1_last(data_in, data_first, a=a, b=b, c=c, alpha=alpha,
+                b, d = diffusion_wf1_m1_last(inp, data_first, a=a, b=b, c=c, alpha=alpha,
                                              beta=beta, gamma=gamma, dz=dz, dt=dt, coeff=coeff,)
                 c = dwf1_helper_c_forward(a=a, b=b, c=c)
                 d = dwf1_helper_d_forward(a=a, b=b, c=c, d=d)
@@ -390,12 +390,7 @@ class Vertical(AbstractStencil):
 
     @staticmethod
     def _stencil_definition(
-        data_out: Field[float64],
-        data_in: Field[float64],
-        *,
-        dz: float64,
-        dt: float64,
-        coeff: float64,
+        out: Field[float64], inp: Field[float64], *, dz: float64, dt: float64, coeff: float64,
     ):
         """Calculate vertical diffusion time step."""
         from __externals__ import (  # noqa (required for subroutines to work)
@@ -423,13 +418,13 @@ class Vertical(AbstractStencil):
         # stage diffusion w 0
         with computation(BACKWARD):
             with interval(-1, None):
-                data_last = copy_data_last_init(data_in)
+                data_last = copy_data_last_init(inp)
             with interval(0, -1):
                 data_last = copy_data_last_backward(data_last)
 
         with computation(FORWARD):
             with interval(0, 1):
-                data_first = data_in
+                data_first = inp
             with interval(1, None):
                 data_first = data_first[0, 0, -1]
 
@@ -439,7 +434,7 @@ class Vertical(AbstractStencil):
         with computation(FORWARD):
             with interval(0, 1):
                 b, c, d = diffusion_wf1_0_1(
-                    data_in,
+                    inp,
                     data_last,
                     a=a,
                     b=b,
@@ -453,7 +448,7 @@ class Vertical(AbstractStencil):
                 )
             with interval(1, -1):
                 d = diffusion_wf1_1_m1(
-                    data_in,
+                    inp,
                     a=a,
                     b=b,
                     c=c,
@@ -468,7 +463,7 @@ class Vertical(AbstractStencil):
                 d = dwf1_helper_d_forward(a=a, b=b, c=c, d=d)
             with interval(-1, None):
                 b, d = diffusion_wf1_m1_last(
-                    data_in,
+                    inp,
                     data_first,
                     a=a,
                     b=b,
@@ -520,7 +515,7 @@ class Vertical(AbstractStencil):
             fact = copy_data_first_forward(fact)
 
         with computation(PARALLEL), interval(...):
-            data_out = periodic3_full(x, z, fact)  # noqa (store result in data_out)
+            out = periodic3_full(x, z, fact)  # noqa (store result in out)
 
     def __call__(self, out: Field[float64], inp: Field[float64], *, dt: float64):
         """Calculate one vertical diffusion iteration."""
@@ -551,3 +546,9 @@ class Full:
     def storage_builder(self):
         """Create a pre-configured storage builder."""
         return self.horizontal.storage_builder()
+
+    def min_origin(self):
+        """Get the minimum possible origin for input storages."""
+        x, y, _ = self.horizontal.min_origin()
+        _, _, z = self.vertical.min_origin()
+        return (x, y, z)

@@ -41,60 +41,60 @@ class Horizontal(AbstractStencil):
         return [weights, cls.flux_v, cls.flux_u]
 
     @staticmethod
-    def flux_u(*, data_in, u, dx):
+    def flux_u(*, inp, u, dx):
         """Calculate the flux in x-direction."""
         w0, w1, w2, w3, w4, w5 = weights()
         if_pos = (
             u
             * -(
-                w0 * data_in[-3, 0, 0]
-                + w1 * data_in[-2, 0, 0]
-                + w2 * data_in[-1, 0, 0]
-                + w3 * data_in
-                + w4 * data_in[1, 0, 0]
-                + w5 * data_in[2, 0, 0]
+                w0 * inp[-3, 0, 0]
+                + w1 * inp[-2, 0, 0]
+                + w2 * inp[-1, 0, 0]
+                + w3 * inp
+                + w4 * inp[1, 0, 0]
+                + w5 * inp[2, 0, 0]
             )
             / dx
         )
         if_neg = (
             u
             * (
-                w5 * data_in[-2, 0, 0]
-                + w4 * data_in[-1, 0, 0]
-                + w3 * data_in
-                + w2 * data_in[1, 0, 0]
-                + w1 * data_in[2, 0, 0]
-                + w0 * data_in[3, 0, 0]
+                w5 * inp[-2, 0, 0]
+                + w4 * inp[-1, 0, 0]
+                + w3 * inp
+                + w2 * inp[1, 0, 0]
+                + w1 * inp[2, 0, 0]
+                + w0 * inp[3, 0, 0]
             )
             / dx
         )
         return if_pos if u > 0.0 else (if_neg if u < 0.0 else 0.0)
 
     @staticmethod
-    def flux_v(*, data_in, v, dy):
+    def flux_v(*, inp, v, dy):
         """Calculate the flux in y direction."""
         w0, w1, w2, w3, w4, w5 = weights()
         if_pos = (
             v
             * -(
-                w0 * data_in[0, -3, 0]
-                + w1 * data_in[0, -2, 0]
-                + w2 * data_in[0, -1, 0]
-                + w3 * data_in
-                + w4 * data_in[0, 1, 0]
-                + w5 * data_in[0, 2, 0]
+                w0 * inp[0, -3, 0]
+                + w1 * inp[0, -2, 0]
+                + w2 * inp[0, -1, 0]
+                + w3 * inp
+                + w4 * inp[0, 1, 0]
+                + w5 * inp[0, 2, 0]
             )
             / dy
         )
         if_neg = (
             v
             * (
-                w5 * data_in[0, -2, 0]
-                + w4 * data_in[0, -1, 0]
-                + w3 * data_in
-                + w2 * data_in[0, 1, 0]
-                + w1 * data_in[0, 2, 0]
-                + w0 * data_in[0, 3, 0]
+                w5 * inp[0, -2, 0]
+                + w4 * inp[0, -1, 0]
+                + w3 * inp
+                + w2 * inp[0, 1, 0]
+                + w1 * inp[0, 2, 0]
+                + w0 * inp[0, 3, 0]
             )
             / dy
         )
@@ -108,7 +108,7 @@ class Horizontal(AbstractStencil):
     @staticmethod
     def _stencil_definition(
         data_out: Field[float64],
-        data_in: Field[float64],
+        inp: Field[float64],
         *,
         dx: float64,
         dy: float64,
@@ -123,9 +123,9 @@ class Horizontal(AbstractStencil):
         # pytype: enable=import-error
 
         with computation(PARALLEL), interval(...):
-            flux_x = flux_u(data_in=data_in, u=u, dx=dx)
-            flux_y = flux_v(data_in=data_in, v=v, dy=dy)
-            data_out = data_in - dt * (  # noqa: data_out is modified to store the result
+            flux_x = flux_u(inp=inp, u=u, dx=dx)
+            flux_y = flux_v(inp=inp, v=v, dy=dy)
+            data_out = inp - dt * (  # noqa: data_out is modified to store the result
                 flux_x + flux_y
             )
 
@@ -177,7 +177,7 @@ class Vertical(AbstractStencil):
 
     @staticmethod
     def _stencil_definition(
-        data_out: Field[float64], data_in: Field[float64], *, w: float64, dz: float64, dt: float64
+        data_out: Field[float64], inp: Field[float64], *, w: float64, dz: float64, dt: float64
     ):
         """Run vertical advection iteration."""
         # pytype: disable=import-error
@@ -198,13 +198,13 @@ class Vertical(AbstractStencil):
         # stage advection w 0
         with computation(BACKWARD):
             with interval(-1, None):
-                data_last = data_in
+                data_last = inp
             with interval(0, -1):
                 data_last = data_last[0, 0, 1]
 
         with computation(FORWARD):
             with interval(0, 1):
-                data_first = data_in
+                data_first = inp
             with interval(1, None):
                 data_first = data_first[0, 0, -1]
 
@@ -219,26 +219,26 @@ class Vertical(AbstractStencil):
         with computation(FORWARD):
             with interval(0, 1):
                 d = (
-                    (1.0 / dt * data_in)
-                    - (0.25 * w_field[0, 0, 1] * (data_in[0, 0, 1] - data_in) / dz)
-                    - (0.25 * w_field * (data_in - data_last) / dz)
+                    (1.0 / dt * inp)
+                    - (0.25 * w_field[0, 0, 1] * (inp[0, 0, 1] - inp) / dz)
+                    - (0.25 * w_field * (inp - data_last) / dz)
                 )
                 b = b - gamma
                 c = c / b
                 d = d / b
             with interval(1, -1):
                 d = (
-                    (1.0 / dt * data_in)
-                    - (0.25 * w_field[0, 0, 1] * (data_in[0, 0, 1] - data_in) / dz)
-                    - (0.25 * w_field * (data_in - data_in[0, 0, -1]) / dz)
+                    (1.0 / dt * inp)
+                    - (0.25 * w_field[0, 0, 1] * (inp[0, 0, 1] - inp) / dz)
+                    - (0.25 * w_field * (inp - inp[0, 0, -1]) / dz)
                 )
                 c = c / (b - c[0, 0, -1] * a)
                 d = (d - a * d[0, 0, -1]) / (b - c[0, 0, -1] * a)
             with interval(-1, None):
                 d = (
-                    (1.0 / dt * data_in)
-                    - (0.25 * w_field * (data_first - data_in) / dz)
-                    - (0.25 * w_field * (data_in - data_in[0, 0, -1]) / dz)
+                    (1.0 / dt * inp)
+                    - (0.25 * w_field * (data_first - inp) / dz)
+                    - (0.25 * w_field * (inp - inp[0, 0, -1]) / dz)
                 )
                 b = b - alpha * beta / gamma
                 c = c / (b - c[0, 0, -1] * a)
@@ -326,16 +326,24 @@ class Full(AbstractStencil):
             Horizontal,
         ]
 
-    def __call__(self, out: Field[float64], inp: Field[float64], *, dt: float64):
+    def __call__(
+        self, out: Field[float64], inp: Field[float64], inp0: Field[float64], *, dt: float64
+    ) -> None:
         """Apply vertical advection stencil."""
         u, v, w = self.velocities
         dx, dy, dz = self.dspace
-        self._call(out, inp, dx=dx, dy=dy, dz=dz, u=u, v=v, w=w, dt=dt)
+        self._call(out, inp, inp0, dx=dx, dy=dy, dz=dz, u=u, v=v, w=w, dt=dt)
+
+    @classmethod
+    def stencil_definition(cls):
+        """Return the stencil definition."""
+        return cls._stencil_definition
 
     @staticmethod
     def _stencil_definition(
         data_out: Field[float64],
-        data_in: Field[float64],
+        inp: Field[float64],
+        inp_0: Field[float64],
         *,
         u: float64,
         v: float64,
@@ -366,13 +374,13 @@ class Full(AbstractStencil):
         # stage advection w 0
         with computation(BACKWARD):
             with interval(-1, None):
-                data_last = data_in
+                data_last = inp
             with interval(0, -1):
                 data_last = data_last[0, 0, 1]
 
         with computation(FORWARD):
             with interval(0, 1):
-                data_first = data_in
+                data_first = inp
             with interval(1, None):
                 data_first = data_first[0, 0, -1]
 
@@ -387,26 +395,26 @@ class Full(AbstractStencil):
         with computation(FORWARD):
             with interval(0, 1):
                 d = (
-                    (1.0 / dt * data_in)
-                    - (0.25 * w_field[0, 0, 1] * (data_in[0, 0, 1] - data_in) / dz)
-                    - (0.25 * w_field * (data_in - data_last) / dz)
+                    (1.0 / dt * inp)
+                    - (0.25 * w_field[0, 0, 1] * (inp[0, 0, 1] - inp) / dz)
+                    - (0.25 * w_field * (inp - data_last) / dz)
                 )
                 b = b - gamma
                 c = c / b
                 d = d / b
             with interval(1, -1):
                 d = (
-                    (1.0 / dt * data_in)
-                    - (0.25 * w_field[0, 0, 1] * (data_in[0, 0, 1] - data_in) / dz)
-                    - (0.25 * w_field * (data_in - data_in[0, 0, -1]) / dz)
+                    (1.0 / dt * inp)
+                    - (0.25 * w_field[0, 0, 1] * (inp[0, 0, 1] - inp) / dz)
+                    - (0.25 * w_field * (inp - inp[0, 0, -1]) / dz)
                 )
                 c = c / (b - c[0, 0, -1] * a)
                 d = (d - a * d[0, 0, -1]) / (b - c[0, 0, -1] * a)
             with interval(-1, None):
                 d = (
-                    (1.0 / dt * data_in)
-                    - (0.25 * w_field * (data_first - data_in) / dz)
-                    - (0.25 * w_field * (data_in - data_in[0, 0, -1]) / dz)
+                    (1.0 / dt * inp)
+                    - (0.25 * w_field * (data_first - inp) / dz)
+                    - (0.25 * w_field * (inp - inp[0, 0, -1]) / dz)
                 )
                 b = b - alpha * beta / gamma
                 c = c / (b - c[0, 0, -1] * a)
@@ -451,8 +459,8 @@ class Full(AbstractStencil):
         # stage runge-kutta advection 3
         with computation(PARALLEL), interval(...):
             v_out = x - fact * z
-            flux_x = flux_u(data_in=data_in, u=u, dx=dx)
-            flux_y = flux_v(data_in=data_in, v=v, dy=dy)
+            flux_x = flux_u(inp=inp, u=u, dx=dx)
+            flux_y = flux_v(inp=inp, v=v, dy=dy)
             data_out = (  # noqa: data_out is modified to store the result
-                data_in - dt * (flux_x + flux_y) + (v_out - data_in)
+                inp_0 - dt * (flux_x + flux_y) + (v_out - inp)
             )

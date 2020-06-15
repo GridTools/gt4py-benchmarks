@@ -35,7 +35,7 @@ def diffusion_coeff():
     yield 0.05
 
 
-@pytest.fixture(params=CASES)
+@pytest.fixture(params=CASES, ids=[i[0] for i in CASES])
 def data_solver(request, diffusion_coeff):
     """Parametrize on all available analytical solvers."""
     name, solver = request.param
