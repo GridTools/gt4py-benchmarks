@@ -165,7 +165,6 @@ class AbstractStencil(abc.ABC):
 
     def min_origin(self):
         """Get minimum origin for this stencil (assume `inp` input field is indicative of all)."""
-        print(self.stencil_obj.field_info)
         return tuple(max(i[0], i[1]) for i in self.stencil_obj.field_info["inp"].boundary)
 
     def storage_builder(self):

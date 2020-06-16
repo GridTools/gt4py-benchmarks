@@ -7,7 +7,7 @@ import pytest
 
 from gt4py_benchmarks.stencils import diffusion, advection
 from gt4py_benchmarks.verification import analytical
-from gt4py_benchmarks.simulations import Simulation, RkAdvSimulation
+from gt4py_benchmarks.simulations import Simulation, RkAdvSimulation, AdvDiffSimulation
 
 
 TEST_BACKEND = "debug"
@@ -53,10 +53,22 @@ CASES = {
         "tolerance": 5e-2,
         "subclass": "RkAdvSimulation",
     },
+    "advection-diffusion": {
+        "stencil": None,
+        "reference": analytical.advection_diffusion,
+        "tolerance": 1.5e-2,
+        "subclass": "AdvDiffSimulation",
+        "domain": analytical.AD_DOMAIN,
+        "extra-args": {"coeff": 0.05},
+    },
 }
 
 
-SimulationSubclassMap = {"Simulation": Simulation, "RkAdvSimulation": RkAdvSimulation}
+SimulationSubclassMap = {
+    "Simulation": Simulation,
+    "RkAdvSimulation": RkAdvSimulation,
+    "AdvDiffSimulation": AdvDiffSimulation,
+}
 
 
 def has_cupy():
