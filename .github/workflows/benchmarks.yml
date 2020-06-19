@@ -21,7 +21,7 @@ jobs:
       - name: write machine file
         run: |
           pwd
-          cp ghrunner-machine.json $HOME/.asv-machine.json
+          cp ./ghrunner-machine.json $HOME/.asv-machine.json
       - name: run benchmarks
         run: asv run --machine ghrunner
       - name: generate results
