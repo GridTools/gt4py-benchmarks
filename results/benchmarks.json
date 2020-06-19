@@ -1,0 +1,51 @@
+{
+    "benchmarks.AdvectionDiffusionSuite.time_run": {
+        "code": "class AdvectionDiffusionSuite:\n    def time_run(self, size, backend):\n        self.simulation.run()\n\n    def setup(self, size, backend):\n        if not has_cupy() and backend in [\"gtcuda\"]:\n            raise NotImplementedError()\n        elif size > 10:\n            raise NotImplementedError()\n        self.simulation_spec = {\n            \"stencil\": None,\n            \"reference\": analytical.advection_diffusion,\n            \"tolerance\": 1.5e-2,\n            \"subclass\": AdvDiffSimulation,\n            \"domain\": analytical.AD_DOMAIN,\n            \"extra-args\": {\"coeff\": 0.05},\n            \"shape\": (size, size, 60),\n            \"max-time\": 0.1,\n            \"time-step\": 1e-3,\n        }\n        self.simulation = AdvDiffSimulation(self.simulation_spec, backend=backend)\n        self.simulation.run()",
+        "min_run_count": 2,
+        "name": "benchmarks.AdvectionDiffusionSuite.time_run",
+        "number": 0,
+        "param_names": [
+            "size",
+            "backend"
+        ],
+        "params": [
+            [
+                "8",
+                "16",
+                "32",
+                "64"
+            ],
+            [
+                "'gtx86'",
+                "'gtmc'",
+                "'gtcuda'",
+                "'numpy'"
+            ]
+        ],
+        "processes": 2,
+        "repeat": 0,
+        "sample_time": 0.01,
+        "timeout": 600,
+        "type": "time",
+        "unit": "seconds",
+        "version": "4dbbbfd8c53eb4ea8a7516441a7847e8c85f8f01b4299568913b58b04257b596",
+        "warmup_time": -1
+    },
+    "benchmarks.MySuite.time_myrun": {
+        "code": "class MySuite:\n    def time_myrun(self):\n        self.simulation.run()\n\n    def setup(self):\n        raise NotImplementedError()\n        self.simulation_spec = {\n            \"stencil\": None,\n            \"reference\": analytical.advection_diffusion,\n            \"tolerance\": 1.5e-2,\n            \"subclass\": AdvDiffSimulation,\n            \"domain\": analytical.AD_DOMAIN,\n            \"extra-args\": {\"coeff\": 0.05},\n            \"shape\": (10, 10, 60),\n            \"max-time\": 0.1,\n            \"time-step\": 1e-3,\n        }\n        self.simulation = AdvDiffSimulation(self.simulation_spec, backend='gtmc')",
+        "min_run_count": 2,
+        "name": "benchmarks.MySuite.time_myrun",
+        "number": 0,
+        "param_names": [],
+        "params": [],
+        "processes": 2,
+        "repeat": 0,
+        "sample_time": 0.01,
+        "timeout": 120,
+        "type": "time",
+        "unit": "seconds",
+        "version": "0f0c6483dbf0a968d9ad749ae9e0aea364ee5a8e4d8007e9fb72ebd7db164672",
+        "warmup_time": -1
+    },
+    "version": 2
+}

@@ -16,9 +16,10 @@ class Simulation:
     def __init__(self, sim_spec: typing.Mapping, *, backend: str):
         """Construct from a simulation specification and the backend fixture."""
         self.domain = sim_spec.get("domain", analytical.DOMAIN)
-        self.time_step = 1e-3
-        self.max_time = 1e-2
-        self.shape = sim_spec.get("shape", (16, 16, 16))
+        self.time_step = sim_spec.get("time_step", 1e-3)
+        self.time = 0
+        self.max_time = sim_spec.get("max-time", 1e-2)
+        self.shape = sim_spec.get("shape", sim_spec.get("shape", (16, 16, 16)))
         self.backend_name = backend
         self.tolerance = sim_spec["tolerance"]
         dspace = numpy.array(analytical.DOMAIN, dtype=numpy.float64) / numpy.array(
@@ -42,12 +43,17 @@ class Simulation:
             functools.partial(self.get_reference, time=self.max_time), shape=self.shape
         )
 
+    def reset(self):
+        """Reset data and internal time."""
+        self.data = copy.deepcopy(self._initial_state)
+        self.data1 = copy.deepcopy(self._initial_state)
+        self.time = 0
+
     def run(self):
         """Run the simulation until `self.max_time`."""
-        time = 0
-        while time <= self.max_time:
+        while self.time <= self.max_time:
             self.step()
-            time += self.time_step
+            self.time += self.time_step
 
     def step(self):
         """Run a simulation step."""
@@ -124,7 +130,12 @@ class RkAdvSimulation(Simulation):
     def __init__(self, sim_spec: typing.Mapping, *, backend: str):
         """Construct from simulation specification and the backend name."""
         super().__init__(sim_spec, backend=backend)
-        self.data2 = copy.deepcopy(self.data)
+        self.data2 = copy.deepcopy(self._initial_state)
+
+    def reset(self):
+        """Reset additional data."""
+        super().reset()
+        self.data2 = copy.deepcopy(self._initial_state)
 
     def step(self):
         """Run the RK advection step."""

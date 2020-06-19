@@ -1,0 +1,9 @@
+{
+    "arch": "x86_64",
+    "cpu": "Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz",
+    "machine": "ricohs-MacBook-Pro.local",
+    "num_cpu": "1",
+    "os": "Mac OS-X 10.15.15",
+    "ram": "8GB",
+    "version": 1
+}
