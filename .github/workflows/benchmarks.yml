@@ -19,7 +19,7 @@ jobs:
       - name: install asv
         run: python -m pip install --upgrade pip asv
       - name: write machine file
-        run: echo '{"ghrunner": {"arch": "unknown", "cpu": "unkwnown", "machine": "ghrunner", "num_cpu": "1", "os": "ubuntu-latest", "ram": "unknown"}, "version": 1}' > $HOME/.asv-machine.json
+        run: cp ghrunner-machine.json $HOME/.asv-machine.json
       - name: run benchmarks
         run: asv run --machine ghrunner
       - name: generate results

@@ -1,0 +1,12 @@
+{
+    "ghrunner":
+    {
+        "arch": "unkwnown",
+        "cpu": "unknown",
+        "machine": "ghrunner",
+        "num_cpu": "1",
+        "os": "ubuntu-latest",
+        "ram": "unknown"
+    },
+    "version": "1"
+}
