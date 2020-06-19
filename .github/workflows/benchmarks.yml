@@ -19,9 +19,9 @@ jobs:
       - name: install asv
         run: python -m pip install --upgrade pip asv
       - name: check files
-        run: ls
+        run: ls ..
       - name: write machine file
-        run: cp ./ghrunner-machine.json $HOME/.asv-machine.json
+        run: cp ../ghrunner-machine.json $HOME/.asv-machine.json
       - name: run benchmarks
         run: asv run --machine ghrunner
       - name: generate results
