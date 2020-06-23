@@ -8,5 +8,5 @@
         "os": "ubuntu-latest",
         "ram": "unknown"
     },
-    "version": "1"
+    "version": 1
 }
