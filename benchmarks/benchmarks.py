@@ -28,6 +28,7 @@ class AdvectionDiffusionSuite:
 
     def setup(self, size, backend):
         """Set up the simulation according to the given parameters."""
+        self.simulation = None
         if not has_cupy() and backend in ["gtcuda"]:
             raise NotImplementedError()
         elif size > 10:
@@ -48,8 +49,10 @@ class AdvectionDiffusionSuite:
 
     def time_run(self, size, backend):
         """Run the benchmark simulation loop."""
-        self.simulation.run()
+        if self.simulation is not None:
+            self.simulation.run()
 
     def teardown(self, size, backend):
         """Reset the simulation data and timer."""
-        self.simulation.reset()
+        if self.simulation is not None:
+            self.simulation.reset()
