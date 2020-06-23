@@ -31,8 +31,6 @@ class AdvectionDiffusionSuite:
         self.simulation = None
         if not has_cupy() and backend in ["gtcuda"]:
             raise NotImplementedError()
-        elif size > 10:
-            raise NotImplementedError()
         self.simulation_spec = {
             "stencil": None,
             "reference": analytical.advection_diffusion,
