@@ -47,8 +47,7 @@ class AdvectionDiffusionSuite:
 
     def time_run(self, size, backend):
         """Run the benchmark simulation loop."""
-        if self.simulation is not None:
-            self.simulation.run()
+        self.simulation.run()
 
     def teardown(self, size, backend):
         """Reset the simulation data and timer."""
