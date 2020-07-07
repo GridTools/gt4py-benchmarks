@@ -1,0 +1,12 @@
+{
+    "daint-compute-node":
+    {
+        "arch": "x86_64",
+        "cpu": "Intel® Xeon® E5-2690 v3 @ 2.60GHz (12 cores, 64GB RAM) and NVIDIA® Tesla® P100 16GB",
+        "machine": "daint-compute-node",
+        "num_cpu": "1",
+        "os": "Cray",
+        "ram": "64GB"
+    },
+    "version": 1
+}

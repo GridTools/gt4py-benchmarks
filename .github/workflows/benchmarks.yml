@@ -3,7 +3,7 @@ name: Benchmarks (CPU only)
 on:
   push:
     branches:
-      - airspeed-velocity
+      - airspeed-velocity-gh
   pull_request:
     branches:
       - master
