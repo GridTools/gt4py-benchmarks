@@ -30,6 +30,7 @@ class AdvectionDiffusionSuite:
         """Set up the simulation according to the given parameters."""
         self.simulation = None
         if not has_cupy() and backend in ["gtcuda"]:
+            print("cupy not importable", file=sys.stderr)
             raise NotImplementedError()
         self.simulation_spec = {
             "stencil": None,
