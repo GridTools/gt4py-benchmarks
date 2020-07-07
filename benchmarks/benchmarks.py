@@ -22,7 +22,7 @@ def has_cupy():
 class AdvectionDiffusionSuite:
     """An example benchmark that times the performance of advection-diffusion."""
 
-    params = ([16, 32, 64, 128, 256], ["gtx86", "gtmc", "gtcuda", "numpy"])
+    params = ([16, 32, 64, 128], ["gtx86", "gtmc", "gtcuda", "numpy"])
     param_names = ("size", "backend")
     timeout = 600
 
