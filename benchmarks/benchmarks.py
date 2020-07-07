@@ -44,7 +44,6 @@ class AdvectionDiffusionSuite:
             "time-step": 1e-3,
         }
         self.simulation = AdvDiffSimulation(self.simulation_spec, backend=backend)
-        self.simulation.run()
 
     def time_run(self, size, backend):
         """Run the benchmark simulation loop."""
