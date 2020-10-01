@@ -14,9 +14,9 @@ def has_cupy():
     try:
         import cupy  # noqa (import is required to determine wether to run tests for cuda backends)
 
-        return True
-    except ImportError:
-        return False
+        return True, None
+    except ImportError as err:
+        return False, err
 
 
 class AdvectionDiffusionSuite:
@@ -29,8 +29,9 @@ class AdvectionDiffusionSuite:
     def setup(self, size, backend):
         """Set up the simulation according to the given parameters."""
         self.simulation = None
-        if not has_cupy() and backend in ["gtcuda"]:
-            print("cupy not importable", file=sys.stderr)
+        cupy_ok, cupy_import_err = has_cupy()
+        if not cupy_ok and backend in ["gtcuda"]:
+            print(f"cupy not importable: {cupy_import_err}", file=sys.stderr)
             raise NotImplementedError()
         self.simulation_spec = {
             "stencil": None,
