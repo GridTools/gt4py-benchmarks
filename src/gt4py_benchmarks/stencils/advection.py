@@ -4,7 +4,6 @@ from typing import Sequence
 from numpy import float64
 from gt4py.gtscript import Field, computation, interval, PARALLEL, BACKWARD, FORWARD
 
-from gt4py_benchmarks.stencils import tridiagonal
 from gt4py_benchmarks.stencils.tooling import AbstractStencil
 
 
@@ -270,15 +269,15 @@ class Full(AbstractStencil):
         return []
 
     @classmethod
+    def externals(cls):
+        ext_dict = super().externals()
+        ext_dict["K_OFFSET"] = 79
+        return ext_dict
+
+    @classmethod
     def uses(cls):
         """Declare substencil usage."""
-        return [
-            tridiagonal.PeriodicBackward1,
-            tridiagonal.PeriodicForward2,
-            tridiagonal.PeriodicBackward2,
-            tridiagonal.Backward,
-            Horizontal,
-        ]
+        return [Horizontal]
 
     def __call__(
         self, out: Field[float64], inp: Field[float64], inp0: Field[float64], *, dt: float64
@@ -295,9 +294,9 @@ class Full(AbstractStencil):
 
     @staticmethod
     def _stencil_definition(
-        data_out: Field[float64],
+        out: Field[float64],
         inp: Field[float64],
-        inp_0: Field[float64],
+        inp0: Field[float64],
         *,
         u: float64,
         v: float64,
@@ -307,114 +306,71 @@ class Full(AbstractStencil):
         dz: float64,
         dt: float64,
     ):
-        """Run vertical advection iteration."""
-        # pytype: disable=import-error
-        from __externals__ import (
-            periodic_backward1_0_m1,
-            periodic_backward1_m1_last,
-            periodic_forward2_0_1,
-            periodic_backward2_m1_last,
-            backward_0_m1,
-            flux_u,
-            flux_v,
-        )
+        from __externals__ import K_OFFSET, flux_u, flux_v
 
-        # pytype: enable=import-error
-
-        # turn w into a field (even though only constant velocity is implemented)
         with computation(PARALLEL), interval(...):
-            w_field = w
-
-        # stage advection w 0
-        with computation(BACKWARD):
-            with interval(-1, None):
-                data_last = inp
-            with interval(0, -1):
-                data_last = data_last[0, 0, 1]
+            wf = w
 
         with computation(FORWARD):
             with interval(0, 1):
-                data_first = inp
-            with interval(1, None):
-                data_first = data_first[0, 0, -1]
-
-        # stage advection w forward 1
-        with computation(PARALLEL), interval(...):
-            a = -0.25 * w / dz
-            c = 0.25 * w / dz
-            b = 1.0 / dt - a - c
-            alpha = -a
-            beta = a
-            gamma = -b
-        with computation(FORWARD):
-            with interval(0, 1):
-                d = (
-                    (1.0 / dt * inp)
-                    - (0.25 * w_field[0, 0, 1] * (inp[0, 0, 1] - inp) / dz)
-                    - (0.25 * w_field * (inp - data_last) / dz)
-                )
-                b = b - gamma
+                a = -0.25 * wf / dz
+                c = 0.25 * wf[0, 0, 1] / dz
+                b = 1.0 / dt - a - c
+                d = 1.0 / dt * inp - c * (inp[0, 0, 1] - inp) + a * (inp - inp[0, 0, K_OFFSET])
+                alpha = -a
+                gamma = -b
+                b = 2 * b
                 c = c / b
                 d = d / b
+                c2 = c / b
+                d2 = gamma / b
             with interval(1, -1):
-                d = (
-                    (1.0 / dt * inp)
-                    - (0.25 * w_field[0, 0, 1] * (inp[0, 0, 1] - inp) / dz)
-                    - (0.25 * w_field * (inp - inp[0, 0, -1]) / dz)
-                )
+                a = -0.25 * wf / dz
+                c = 0.25 * wf[0, 0, 1] / dz
+                b = 1.0 / dt - a - c
+                d = 1.0 / dt * inp - c * (inp[0, 0, 1] - inp) + a * (inp - inp[0, 0, -1])
+                # alpha and gamma could be 2D
+                alpha = alpha[0, 0, -1]
+                gamma = gamma[0, 0, -1]
                 c = c / (b - c[0, 0, -1] * a)
                 d = (d - a * d[0, 0, -1]) / (b - c[0, 0, -1] * a)
-            with interval(-1, None):
-                d = (
-                    (1.0 / dt * inp)
-                    - (0.25 * w_field * (data_first - inp) / dz)
-                    - (0.25 * w_field * (inp - inp[0, 0, -1]) / dz)
-                )
-                b = b - alpha * beta / gamma
-                c = c / (b - c[0, 0, -1] * a)
-                d = (d - a * d[0, 0, -1]) / (b - c[0, 0, -1] * a)
+                c2 = c / (b - c2[0, 0, -1] * a)
+                d2 = (-a * d2[0, 0, -1]) / (b - c2[0, 0, -1] * a)
 
-        # stage advection w backward 1
+            with interval(-1, None):
+                a = -0.25 * wf / dz
+                c = 0.25 * wf[0, 0, -K_OFFSET] / dz
+                b = 1.0 / dt - a - c
+                d = 1.0 / dt * inp - c * (inp[0, 0, -K_OFFSET] - inp) + a * (inp - inp[0, 0, -1])
+                # alpha and gamma could be 2D
+                alpha = alpha[0, 0, -1]
+                gamma = gamma[0, 0, -1]
+                b = b + alpha * alpha / gamma
+                c = c / (b - c[0, 0, -1] * a)
+                d = (d - a * d[0, 0, -1]) / (b - c[0, 0, -1] * a)
+                c2 = c / (b - c2[0, 0, -1] * a)
+                d2 = (alpha - a * d2[0, 0, -1]) / (b - c2[0, 0, -1] * a)
+
         with computation(BACKWARD):
-            with interval(-1, None):
-                x = periodic_backward1_m1_last(d)
-            with interval(0, -1):
-                x = periodic_backward1_0_m1(x, c, d)
+            with interval(0, 1):
+                d = d - c * d[0, 0, 1]
+                d2 = d2 - c2 * d2[0, 0, 1]
+                fact = (d - alpha * d[0, 0, K_OFFSET] / gamma) / (
+                    1 + d2 - alpha * d2[0, 0, K_OFFSET] / gamma
+                )
+            with interval(1, -1):
+                d = d - c * d[0, 0, 1]
+                d2 = d2 - c2 * d2[0, 0, 1]
 
-        # stage advection w forward 2
         with computation(FORWARD):
             with interval(0, 1):
-                c, d = periodic_forward2_0_1(a, b, c, d, alpha, gamma)
-            with interval(1, -1):
-                d = 0
-                c = c / (b - c[0, 0, -1] * a)
-                d = (d - a * d[0, 0, -1]) / (b - c[0, 0, -1] * a)
-            with interval(-1, None):
-                d = alpha
-                c = c / (b - c[0, 0, -1] * a)
-                d = (d - a * d[0, 0, -1]) / (b - c[0, 0, -1] * a)
-
-        # stage advection w backward 2
-        with computation(BACKWARD):
-            with interval(-1, None):
-                z, z_top, x_top = periodic_backward2_m1_last(d=d, x=x)
-            with interval(1, -1):
-                z_top = z_top[0, 0, 1]
-                x_top = x_top[0, 0, 1]
-                z = backward_0_m1(out=z, c=c, d=d)
-            with interval(0, 1):
-                z_top = z_top[0, 0, 1]
-                x_top = x_top[0, 0, 1]
-                z = backward_0_m1(out=z, c=c, d=d)
-                fact = (x + beta * x_top / gamma) / (1.0 + z + beta * z_top / gamma)
-        with computation(FORWARD), interval(1, None):
-            fact = fact[0, 0, -1]
-
-        # stage runge-kutta advection 3
-        with computation(PARALLEL), interval(...):
-            v_out = x - fact * z
-            flux_x = flux_u(inp=inp, u=u, dx=dx)
-            flux_y = flux_v(inp=inp, v=v, dy=dy)
-            data_out = (  # noqa: data_out is modified to store the result
-                inp_0 - dt * (flux_x + flux_y) + (v_out - inp)
-            )
+                vout = d - fact * d2
+                flx = flux_u(inp=inp, u=u, dx=dx)
+                fly = flux_v(inp=inp, v=v, dy=dy)
+                out = inp0 - dt * (flx + fly) + (vout - inp)
+            with interval(1, None):
+                fact = fact[0, 0, -1]
+                vout = d - fact * d2
+                flx = flux_u(inp=inp, u=u, dx=dx)
+                fly = flux_v(inp=inp, v=v, dy=dy)
+                out = inp0 - dt * (flx + fly) + (vout - inp)  # noqa

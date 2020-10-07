@@ -175,45 +175,6 @@ class AbstractStencil(abc.ABC):
         return builder
 
 
-class AbstractSubstencil:
-    """
-    A substencil defines one or more subroutines which logically belong together.
-
-    Another substencil or stencil can declare usage of a substencil in it's `uses` method.
-    The original substencil's subroutines will then be injected automatically into the `externals`
-    of every stencil at the end of the `uses` chain.
-
-    A substencil should never be used for holding any state.
-    """
-
-    @classmethod
-    @abc.abstractmethod
-    def name(cls):
-        """Declare name."""
-        return ""
-
-    @classmethod
-    def uses(cls):
-        """List substencil classes used."""
-        return []
-
-    @classmethod
-    def externals(cls):
-        """Return an `externals` dictionary that can be used to compile stencils."""
-        ext_dict = {}
-        for sub in cls.uses():
-            ext_dict.update(sub.externals())
-        ext_dict.update(cls.subs())
-        return ext_dict
-
-    @classmethod
-    def subs(cls):
-        """Return a dictionary with subroutines, keyed on their name."""
-        subroutines = (name for name in cls.__dict__ if name.startswith(cls.name()))
-        cls_subs = {name: gtscript.function(getattr(cls, name)) for name in subroutines}
-        return cls_subs
-
-
 def using(globals, *substencils):
     """Pull required substencils' subroutines into global scope for gtscript."""
 
