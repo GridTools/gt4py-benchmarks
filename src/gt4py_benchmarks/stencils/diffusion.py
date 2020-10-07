@@ -198,7 +198,7 @@ class Vertical(AbstractStencil):
                 gamma = -1.0 / dt - 2 * beta
                 d = d - c * d[0, 0, 1]
                 d2 = d2 - c2 * d2[0, 0, 1]
-                fact = (d + beta * d[0, 0, 79] / gamma) / (
+                fact = (d + beta * d[0, 0, K_OFFSET] / gamma) / (
                     1 + d2 + beta * d2[0, 0, K_OFFSET] / gamma
                 )
 
