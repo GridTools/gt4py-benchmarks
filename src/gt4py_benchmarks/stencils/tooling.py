@@ -141,17 +141,6 @@ class AbstractStencil(abc.ABC):
         """Backend property."""
         return self._backend
 
-    @abc.abstractmethod
-    def copy_data(self, other):
-        """Copy additional state (subclass hook)."""
-        pass
-
-    def copy_with_backend(self, backend):
-        """Create a copy of the stencil (including internal state) but with another backend."""
-        new = self.__class__(backend=backend)
-        new.copy_data(self)
-        return new
-
     def _call(self, *args, **kwargs):
         """Execute the internal gtscripts stencil."""
         self._stencil(*args, **kwargs)

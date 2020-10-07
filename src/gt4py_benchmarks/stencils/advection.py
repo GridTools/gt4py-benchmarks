@@ -28,12 +28,6 @@ class Horizontal(AbstractStencil):
         """Declare the stencil name."""
         return "horizontal_advection"
 
-    def copy_data(self, other):
-        """Copy internal state from another instance."""
-        self.dx = other.dx
-        self.dy = other.dy
-        self.velocities = other.velocities
-
     @classmethod
     def subroutines(cls):
         """Declare internal and external subroutines used in the stencil."""
@@ -149,11 +143,6 @@ class Vertical(AbstractStencil):
         """Declare the stencil name."""
         return "vertical_advection"
 
-    def copy_data(self, other):
-        """Copy internal state from another instance."""
-        self.dz = other.dz
-        self.velocities = other.velocities
-
     @classmethod
     def subroutines(cls):
         """Declare subroutines used in the stencil."""
@@ -252,11 +241,6 @@ class Full(AbstractStencil):
         self.velocities = [float64(0), float64(0), float64(3)]
         self.velocities = kwargs.pop("velocities", self.velocities)
         super().__init__(backend=backend)
-
-    def copy_data(self, other):
-        """Copy internal state from another instance."""
-        self.dspace = other.dspace
-        self.velocities = other.velocities
 
     @classmethod
     def name(cls):

@@ -21,12 +21,6 @@ class Horizontal(AbstractStencil):
         self.dy = float64(dspace[1])
         self.coeff = coeff
 
-    def copy_data(self, other):
-        """Copy internal state from another instance."""
-        self.dx = other.dx
-        self.dy = other.dy
-        self.coeff = other.coeff
-
     @classmethod
     def name(cls):
         """Declare name."""
@@ -125,11 +119,6 @@ class Vertical(AbstractStencil):
         super().__init__(backend=backend)
         self.dz = dspace[2]
         self.coeff = coeff
-
-    def copy_data(self, other):
-        """Copy internal data from another instance."""
-        self.dz = other.dz
-        self.coeff = other.coeff
 
     @classmethod
     def name(cls):
