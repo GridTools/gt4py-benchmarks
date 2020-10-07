@@ -131,8 +131,11 @@ class Horizontal(AbstractStencil):
 class Vertical(AbstractStencil):
     """Vertical advection stencil."""
 
-    def __init__(self, *, dspace: Sequence[float64], backend="debug", **kwargs):
+    def __init__(
+        self, *, shape: Sequence[float64], dspace: Sequence[float64], backend="debug", **kwargs
+    ):
         """Construct from spacial resolution and backend name."""
+        self.shape = shape
         self.dz = float64(dspace[2])
         self.velocities = [float64(0), float64(0), float64(3)]
         self.velocities = kwargs.pop("velocities", self.velocities)
@@ -148,10 +151,9 @@ class Vertical(AbstractStencil):
         """Declare subroutines used in the stencil."""
         return []
 
-    @classmethod
-    def externals(cls):
+    def externals(self):
         ext_dict = super().externals()
-        ext_dict["K_OFFSET"] = 79
+        ext_dict["K_OFFSET"] = self.shape[2] - 1
         return ext_dict
 
     @classmethod
@@ -235,8 +237,11 @@ class Vertical(AbstractStencil):
 class Full(AbstractStencil):
     """Full Advection stepper."""
 
-    def __init__(self, *, dspace: Sequence[float64], backend="debug", **kwargs):
+    def __init__(
+        self, *, shape: Sequence[float64], dspace: Sequence[float64], backend="debug", **kwargs
+    ):
         """Construct from spacial resolution and backend name."""
+        self.shape = shape
         self.dspace = dspace
         self.velocities = [float64(0), float64(0), float64(3)]
         self.velocities = kwargs.pop("velocities", self.velocities)
@@ -252,10 +257,9 @@ class Full(AbstractStencil):
         """Declare subroutines used in the stencil."""
         return []
 
-    @classmethod
-    def externals(cls):
+    def externals(self):
         ext_dict = super().externals()
-        ext_dict["K_OFFSET"] = 79
+        ext_dict["K_OFFSET"] = self.shape[2] - 1
         return ext_dict
 
     @classmethod

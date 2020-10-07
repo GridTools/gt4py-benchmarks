@@ -26,6 +26,7 @@ class Simulation:
         )
         stencil_args = {
             "backend": self.backend_name,
+            "shape": self.shape,
             "dspace": dspace,
             "time_step": self.time_step,
         }

@@ -114,9 +114,18 @@ class Horizontal(AbstractStencil):
 class Vertical(AbstractStencil):
     """Vertical diffusion stencil."""
 
-    def __init__(self, *, dspace: Sequence[float64], coeff: float64, backend="debug", **kwargs):
+    def __init__(
+        self,
+        *,
+        shape: Sequence[float64],
+        dspace: Sequence[float64],
+        coeff: float64,
+        backend="debug",
+        **kwargs,
+    ):
         """Construct from backend name, spacial resolution and diffusion coefficient."""
         super().__init__(backend=backend)
+        self.shape = shape
         self.dz = dspace[2]
         self.coeff = coeff
 
@@ -130,10 +139,9 @@ class Vertical(AbstractStencil):
         """Declare subroutines which are not in one of the substencils."""
         return []
 
-    @classmethod
-    def externals(cls):
+    def externals(self):
         ext_dict = super().externals()
-        ext_dict["K_OFFSET"] = 79
+        ext_dict["K_OFFSET"] = self.shape[2] - 1
         return ext_dict
 
     @classmethod
@@ -209,13 +217,23 @@ class Vertical(AbstractStencil):
 class Full:
     """Full diffusion stepper."""
 
-    def __init__(self, *, dspace: Sequence[float64], coeff: float64, backend="debug", **kwargs):
+    def __init__(
+        self,
+        *,
+        shape: Sequence[float64],
+        dspace: Sequence[float64],
+        coeff: float64,
+        backend="debug",
+        **kwargs,
+    ):
         """Construct from backend name, vertical resolution and diffusion coefficient."""
         self.backend = backend
         self.dspace = dspace
         self.coeff = coeff
         self.horizontal = Horizontal(dspace=dspace, coeff=coeff, backend=backend, **kwargs)
-        self.vertical = Vertical(dspace=dspace, coeff=coeff, backend=backend, **kwargs)
+        self.vertical = Vertical(
+            shape=shape, dspace=dspace, coeff=coeff, backend=backend, **kwargs
+        )
 
     def __call__(self, out: Field[float64], inp: Field[float64], *, dt: float64):
         """Calculate one iteration of diffusion, storing the result in `out`."""
