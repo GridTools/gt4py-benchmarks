@@ -162,14 +162,3 @@ class AbstractStencil(abc.ABC):
         if hasattr(self, "SCALAR_T"):
             builder = builder.dtype(self.SCALAR_T)
         return builder
-
-
-def using(globals, *substencils):
-    """Pull required substencils' subroutines into global scope for gtscript."""
-
-    def decorator(new_substencil):
-        for sub in substencils:
-            globals.update(sub.externals())
-        return new_substencil
-
-    return decorator
