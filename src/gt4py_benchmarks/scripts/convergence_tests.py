@@ -9,7 +9,7 @@ from ..utils.cli import KeyValueArg
 
 def run_convergence_tests(runtime):
     dtype = runtime.stencil_backend.dtype
-    max_resolution = 16 if dtype is np.float32 else 32
+    max_resolution = 16 if dtype == np.float32 else 32
 
     def run_tests(title, exact, stepper):
         print(f"=== {title} ===")
@@ -17,7 +17,7 @@ def run_convergence_tests(runtime):
 
         def spatial_error(n):
             return runtime.solve(
-                exact, stepper, (n, n, n), 1e-2, 1e-3 if dtype is np.float32 else 1e-5
+                exact, stepper, (n, n, n), 1e-2, 1e-3 if dtype == np.float32 else 1e-5
             ).error
 
         def spacetime_error(n):
@@ -31,6 +31,16 @@ def run_convergence_tests(runtime):
         "HORIZONTAL DIFFUSION",
         analytical.horizontal_diffusion(diffusion_coeff),
         runtime.stencil_backend.hdiff_stepper(diffusion_coeff),
+    )
+    run_tests(
+        "VERTICAL DIFFUSION",
+        analytical.vertical_diffusion(diffusion_coeff),
+        runtime.stencil_backend.vdiff_stepper(diffusion_coeff),
+    )
+    run_tests(
+        "FULL DIFFUSION",
+        analytical.full_diffusion(diffusion_coeff),
+        runtime.stencil_backend.diff_stepper(diffusion_coeff),
     )
 
 

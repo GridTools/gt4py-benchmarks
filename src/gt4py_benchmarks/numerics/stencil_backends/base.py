@@ -20,9 +20,9 @@ class StencilBackend(abc.ABC):
     def hdiff_stencil(self, resolution, delta, diffusion_coeff):
         pass
 
-    # @abc.abstractmethod
-    # def vdiff_stencil(self, diffusion_coeff):
-    # pass
+    @abc.abstractmethod
+    def vdiff_stencil(self, resolution, delta, diffusion_coeff):
+        pass
 
     # @abc.abstractmethod
     # def hadv_stencil(self):
@@ -50,8 +50,8 @@ class StencilBackend(abc.ABC):
         return stepper
 
     def vdiff_stepper(self, diffusion_coeff):
-        def stepper(exchange):
-            vdiff = self.vdiff_stencil(diffusion_coeff)
+        def stepper(state, exchange):
+            vdiff = self.vdiff_stencil(state.resolution, state.delta, diffusion_coeff)
 
             def step(state, dt):
                 vdiff(state.data[1], state.data[0], dt)
@@ -62,9 +62,9 @@ class StencilBackend(abc.ABC):
         return stepper
 
     def diff_stepper(self, diffusion_coeff):
-        def stepper(exchange):
-            hdiff = self.hdiff_stencil(diffusion_coeff)
-            vdiff = self.vdiff_stencil(diffusion_coeff)
+        def stepper(state, exchange):
+            hdiff = self.hdiff_stencil(state.resolution, state.delta, diffusion_coeff)
+            vdiff = self.vdiff_stencil(state.resolution, state.delta, diffusion_coeff)
 
             def step(state, dt):
                 exchange(state.data[0])
@@ -76,8 +76,8 @@ class StencilBackend(abc.ABC):
         return stepper
 
     def hadv_stepper(self):
-        def stepper(exchange):
-            hadv = self.hadv_stencil()
+        def stepper(state, exchange):
+            hadv = self.hadv_stencil(state.resolution, state.delta)
 
             def step(state, dt):
                 exchange(state.data[0])
@@ -89,8 +89,8 @@ class StencilBackend(abc.ABC):
         return stepper
 
     def vadv_stepper(self):
-        def stepper(exchange):
-            vadv = self.vadv_stencil()
+        def stepper(state, exchange):
+            vadv = self.vadv_stencil(state.resolution, state.delta)
 
             def step(state, dt):
                 exchange(state.data[0])
@@ -102,8 +102,8 @@ class StencilBackend(abc.ABC):
         return stepper
 
     def rkadv_stepper(self):
-        def stepper(exchange):
-            rkadv = self.rkadv_stencil()
+        def stepper(state, exchange):
+            rkadv = self.rkadv_stencil(state.resolution, state.delta)
 
             def step(state, dt):
                 exchange(state.data[0])
@@ -122,10 +122,10 @@ class StencilBackend(abc.ABC):
         return stepper
 
     def advdiff_stepper(self, diffusion_coeff):
-        def stepper(exchange):
-            hdiff = self.hdiff_stencil(diffusion_coeff)
-            vdiff = self.vdiff_stencil(diffusion_coeff)
-            rkadv = self.rkadv_stencil()
+        def stepper(state, exchange):
+            hdiff = self.hdiff_stencil(state.resolution, state.delta, diffusion_coeff)
+            vdiff = self.vdiff_stencil(state.resolution, state.delta, diffusion_coeff)
+            rkadv = self.rkadv_stencil(state.resolution, state.delta)
 
             def step(state, dt):
                 vdiff(state.data[1], state.data[0], dt)

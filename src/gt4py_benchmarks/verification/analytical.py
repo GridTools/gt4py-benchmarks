@@ -29,6 +29,20 @@ def horizontal_diffusion(diffusion_coeff):
     return AnalyticalSolution(domain=(4 * np.pi, 4 * np.pi, 4 * np.pi), data=data)
 
 
+def vertical_diffusion(diffusion_coeff):
+    def data(x, y, z, t):
+        return np.cos(z) * np.exp(-diffusion_coeff * t)
+
+    return AnalyticalSolution(domain=(4 * np.pi, 4 * np.pi, 4 * np.pi), data=data)
+
+
+def full_diffusion(diffusion_coeff):
+    def data(x, y, z, t):
+        return np.sin(x) * np.cos(y) * np.cos(z) * np.exp(-3 * diffusion_coeff * t)
+
+    return AnalyticalSolution(domain=(4 * np.pi, 4 * np.pi, 4 * np.pi), data=data)
+
+
 def repeat(analytical: AnalyticalSolution, repeats: typing.Tuple[int, int, int]):
     def remap(f):
         @functools.wraps(f)

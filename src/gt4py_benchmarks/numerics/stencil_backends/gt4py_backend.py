@@ -24,18 +24,17 @@ class StencilBackend(base.StencilBackend):
         def threshold(val, diff):
             return 0 if val * diff < 0 else val
 
-        @gtscript.stencil(
-            backend=self.gt4py_backend,
-            externals={
-                "coeff": self.dtype.type(diffusion_coeff),
-                "dx": self.dtype.type(delta[0]),
-                "dy": self.dtype.type(delta[1]),
-                "threshold": threshold,
-            },
-        )
-        def stencil(out: Field[self.dtype.type], inp: Field[self.dtype.type], dt: self.dtype.type):
+        @gtscript.stencil(backend=self.gt4py_backend, externals={"threshold": threshold})
+        def stencil(
+            out: Field[self.dtype.type],
+            inp: Field[self.dtype.type],
+            dt: self.dtype.type,
+            coeff: self.dtype.type,
+            dx: self.dtype.type,
+            dy: self.dtype.type,
+        ):
 
-            from __externals__ import threshold, coeff, dx, dy  # noqa
+            from __externals__ import threshold  # noqa
 
             with computation(PARALLEL), interval(...):
                 w_0 = -1.0 / 90.0
@@ -86,4 +85,103 @@ class StencilBackend(base.StencilBackend):
                     coeff * dt * (((flx_x1 - flx_x0) / dx) + ((flx_y1 - flx_y0) / dy))
                 )
 
-        return stencil
+        diffusion_coeff = self.dtype.type(diffusion_coeff)
+        dx = self.dtype.type(delta[0])
+        dy = self.dtype.type(delta[1])
+
+        def wrapper(out, inp, dt):
+            stencil(
+                out,
+                inp,
+                self.dtype.type(dt),
+                diffusion_coeff,
+                dx,
+                dy,
+                origin=(HALO, HALO, 0),
+                domain=resolution,
+            )
+
+        return wrapper
+
+    def vdiff_stencil(self, resolution, delta, diffusion_coeff):
+        @gtscript.stencil(
+            backend=self.gt4py_backend, externals={"K_OFFSET": int(resolution[2] - 1)}
+        )
+        def stencil(
+            out: Field[self.dtype.type],
+            inp: Field[self.dtype.type],
+            dt: self.dtype.type,
+            coeff: self.dtype.type,
+            dz: self.dtype.type,
+        ):
+            from __externals__ import K_OFFSET
+
+            with computation(FORWARD):
+                with interval(0, 1):
+                    ac = -coeff / (2.0 * dz * dz)
+                    b = 1.0 / dt - 2 * ac
+                    d = 1.0 / dt * inp + 0.5 * coeff * (
+                        inp[0, 0, K_OFFSET] - 2 * inp + inp[0, 0, 1]
+                    ) / (dz * dz)
+                    b = 2 * b
+                    c = ac / b
+                    d = d / b
+                    c2 = c / b
+                    d2 = -0.5
+                with interval(1, -1):
+                    ac = -coeff / (2 * dz * dz)
+                    b = 1.0 / dt - 2 * ac
+                    d = 1.0 / dt * inp + 0.5 * coeff * (inp[0, 0, -1] - 2 * inp + inp[0, 0, 1]) / (
+                        dz * dz
+                    )
+                    c = ac / (b - c[0, 0, -1] * ac)
+                    d = (d - ac * d[0, 0, -1]) / (b - c[0, 0, -1] * ac)
+                    c2 = c / (b - c2[0, 0, -1] * ac)
+                    d2 = (-ac * d2[0, 0, -1]) / (b - c2[0, 0, -1] * ac)
+                with interval(-1, None):
+                    ac = -coeff / (2 * dz * dz)
+                    b = 1.0 / dt - 2 * ac
+                    d = 1.0 / dt * inp + 0.5 * coeff * (
+                        inp[0, 0, -1] - 2 * inp + inp[0, 0, -K_OFFSET]
+                    ) / (dz * dz)
+                    b = b + ac * ac / b
+                    c = ac / (b - c[0, 0, -1] * ac)
+                    d = (d - ac * d[0, 0, -1]) / (b - c[0, 0, -1] * ac)
+                    c2 = c / (b - c2[0, 0, -1] * ac)
+                    d2 = (ac - ac * d2[0, 0, -1]) / (b - c2[0, 0, -1] * ac)
+
+            with computation(BACKWARD):
+                with interval(1, -1):
+                    d = d - c * d[0, 0, 1]
+                    d2 = d2 - c2 * d2[0, 0, 1]
+                with interval(0, 1):
+                    beta = -coeff / (2 * dz * dz)
+                    gamma = -1.0 / dt - 2 * beta
+                    d = d - c * d[0, 0, 1]
+                    d2 = d2 - c2 * d2[0, 0, 1]
+                    fact = (d + beta * d[0, 0, K_OFFSET] / gamma) / (
+                        1 + d2 + beta * d2[0, 0, K_OFFSET] / gamma
+                    )
+
+            with computation(FORWARD):
+                with interval(0, 1):
+                    out = d - fact * d2
+                with interval(1, None):
+                    fact = fact[0, 0, -1]
+                    out = d - fact * d2  # noqa: F841
+
+        diffusion_coeff = self.dtype.type(diffusion_coeff)
+        dz = self.dtype.type(delta[2])
+
+        def wrapper(out, inp, dt):
+            stencil(
+                out,
+                inp,
+                self.dtype.type(dt),
+                diffusion_coeff,
+                dz,
+                origin=(HALO, HALO, 0),
+                domain=resolution,
+            )
+
+        return wrapper
