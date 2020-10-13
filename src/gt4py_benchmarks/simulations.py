@@ -52,9 +52,7 @@ class Simulation:
 
     def step(self):
         """Run a simulation step."""
-        self.stencil(
-            self.data1, self.data, dt=self.time_step,
-        )
+        self.stencil(self.data1, self.data, dt=self.time_step)
         self._swap_data()
 
     def __repr__(self):
