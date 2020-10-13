@@ -185,3 +185,59 @@ class StencilBackend(base.StencilBackend):
             )
 
         return wrapper
+
+    def hadv_stencil(self, resolution, delta):
+        @gtscript.function
+        def flux(im3, im2, im1, ic, ip1, ip2, ip3, velocity, delta):
+            from __externals__ import w0, w1, w2, w3, w4, w5
+
+            if_pos = -(
+                velocity * (w0 * im3 + w1 * im2 + w2 * im1 + w3 * ic + w4 * ip1 + w5 * ip2) / delta
+            )
+            if_neg = (
+                velocity * (w5 * im2 + w4 * im1 + w3 * ic + w2 * ip1 + w1 * ip2 + w0 * ip3) / delta
+            )
+            return if_pos if velocity > 0 else if_neg
+
+        weights = 1 / 30, -1 / 4, 1, -1 / 3, -1 / 2, 1 / 20
+        externals = {f"w{i}": self.dtype.type(w) for i, w in enumerate(weights)}
+        externals["flux"] = flux
+
+        @gtscript.stencil(backend=self.gt4py_backend, externals=externals)
+        def stencil(
+            out: Field[self.dtype.type],
+            inp: Field[self.dtype.type],
+            u: Field[self.dtype.type],
+            v: Field[self.dtype.type],
+            dt: self.dtype.type,
+            dx: self.dtype.type,
+            dy: self.dtype.type,
+        ):
+            from __externals__ import flux  # noqa
+
+            with computation(PARALLEL), interval(...):
+                flux_x = flux(
+                    inp[-3, 0], inp[-2, 0], inp[-1, 0], inp, inp[1, 0], inp[2, 0], inp[3, 0], u, dx
+                )
+                flux_y = flux(
+                    inp[0, -3], inp[0, -2], inp[0, -1], inp, inp[0, 1], inp[0, 2], inp[0, 3], v, dy
+                )
+                out = inp - dt * (flux_x + flux_y)  # noqa
+
+        dx = self.dtype.type(delta[0])
+        dy = self.dtype.type(delta[1])
+
+        def wrapper(out, inp, u, v, dt):
+            stencil(
+                out,
+                inp,
+                u,
+                v,
+                self.dtype.type(dt),
+                dx,
+                dy,
+                origin=(HALO, HALO, 0),
+                domain=resolution,
+            )
+
+        return wrapper

@@ -43,6 +43,19 @@ def full_diffusion(diffusion_coeff):
     return AnalyticalSolution(domain=(4 * np.pi, 4 * np.pi, 4 * np.pi), data=data)
 
 
+def horizontal_advection():
+    def data(x, y, z, t):
+        return np.sin(x - 5 * t) * np.cos(y + 2 * t) * np.cos(z)
+
+    def u(x, y, z, t):
+        return np.full_like(x, 5)
+
+    def v(x, y, z, t):
+        return np.full_like(x, -2)
+
+    return AnalyticalSolution(domain=(4 * np.pi, 4 * np.pi, 4 * np.pi), data=data, u=u, v=v)
+
+
 def repeat(analytical: AnalyticalSolution, repeats: typing.Tuple[int, int, int]):
     def remap(f):
         @functools.wraps(f)

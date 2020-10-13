@@ -42,6 +42,11 @@ def run_convergence_tests(runtime):
         analytical.full_diffusion(diffusion_coeff),
         runtime.stencil_backend.diff_stepper(diffusion_coeff),
     )
+    run_tests(
+        "HORIZONTAL ADVECTION",
+        analytical.horizontal_advection(),
+        runtime.stencil_backend.hadv_stepper(),
+    )
 
 
 @click.command()
