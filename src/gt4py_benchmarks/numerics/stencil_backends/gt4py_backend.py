@@ -241,3 +241,87 @@ class StencilBackend(base.StencilBackend):
             )
 
         return wrapper
+
+    def vadv_stencil(self, resolution, delta):
+        @gtscript.stencil(
+            backend=self.gt4py_backend, externals={"K_OFFSET": int(resolution[2] - 1)}
+        )
+        def stencil(
+            out: Field[self.dtype.type],
+            inp: Field[self.dtype.type],
+            w: Field[self.dtype.type],
+            dt: self.dtype.type,
+            dz: self.dtype.type,
+        ):
+            from __externals__ import K_OFFSET
+
+            with computation(FORWARD):
+                with interval(0, 1):
+                    a = -0.25 * w / dz
+                    c = 0.25 * w[0, 0, 1] / dz
+                    b = 1.0 / dt - a - c
+                    d = 1.0 / dt * inp - c * (inp[0, 0, 1] - inp) + a * (inp - inp[0, 0, K_OFFSET])
+                    alpha = -a
+                    gamma = -b
+                    b = 2 * b
+                    c = c / b
+                    d = d / b
+                    c2 = c / b
+                    d2 = gamma / b
+                with interval(1, -1):
+                    a = -0.25 * w / dz
+                    c = 0.25 * w[0, 0, 1] / dz
+                    b = 1.0 / dt - a - c
+                    d = 1.0 / dt * inp - c * (inp[0, 0, 1] - inp) + a * (inp - inp[0, 0, -1])
+                    # alpha and gamma could be 2D
+                    alpha = alpha[0, 0, -1]
+                    gamma = gamma[0, 0, -1]
+                    c = c / (b - c[0, 0, -1] * a)
+                    d = (d - a * d[0, 0, -1]) / (b - c[0, 0, -1] * a)
+                    c2 = c / (b - c2[0, 0, -1] * a)
+                    d2 = (-a * d2[0, 0, -1]) / (b - c2[0, 0, -1] * a)
+
+                with interval(-1, None):
+                    a = -0.25 * w / dz
+                    c = 0.25 * w[0, 0, -K_OFFSET] / dz
+                    b = 1.0 / dt - a - c
+                    d = (
+                        1.0 / dt * inp
+                        - c * (inp[0, 0, -K_OFFSET] - inp)
+                        + a * (inp - inp[0, 0, -1])
+                    )
+                    # alpha and gamma could be 2D
+                    alpha = alpha[0, 0, -1]
+                    gamma = gamma[0, 0, -1]
+                    b = b + alpha * alpha / gamma
+                    c = c / (b - c[0, 0, -1] * a)
+                    d = (d - a * d[0, 0, -1]) / (b - c[0, 0, -1] * a)
+                    c2 = c / (b - c2[0, 0, -1] * a)
+                    d2 = (alpha - a * d2[0, 0, -1]) / (b - c2[0, 0, -1] * a)
+
+            with computation(BACKWARD):
+                with interval(0, 1):
+                    d = d - c * d[0, 0, 1]
+                    d2 = d2 - c2 * d2[0, 0, 1]
+                    fact = (d - alpha * d[0, 0, K_OFFSET] / gamma) / (
+                        1 + d2 - alpha * d2[0, 0, K_OFFSET] / gamma
+                    )
+                with interval(1, -1):
+                    d = d - c * d[0, 0, 1]
+                    d2 = d2 - c2 * d2[0, 0, 1]
+
+            with computation(FORWARD):
+                with interval(0, 1):
+                    out = d - fact * d2
+                with interval(1, None):
+                    fact = fact[0, 0, -1]
+                    out = d - fact * d2  # noqa
+
+        dz = self.dtype.type(delta[2])
+
+        def wrapper(out, inp, w, dt):
+            stencil(
+                out, inp, w, self.dtype.type(dt), dz, origin=(HALO, HALO, 0), domain=resolution
+            )
+
+        return wrapper

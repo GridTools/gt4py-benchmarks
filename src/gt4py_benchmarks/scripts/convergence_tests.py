@@ -47,6 +47,11 @@ def run_convergence_tests(runtime):
         analytical.horizontal_advection(),
         runtime.stencil_backend.hadv_stepper(),
     )
+    run_tests(
+        "VERTICAL ADVECTION",
+        analytical.vertical_advection(),
+        runtime.stencil_backend.vadv_stepper(),
+    )
 
 
 @click.command()
