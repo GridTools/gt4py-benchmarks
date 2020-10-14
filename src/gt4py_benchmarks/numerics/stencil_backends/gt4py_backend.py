@@ -5,6 +5,49 @@ from . import base
 from ...constants import HALO
 
 
+@gtscript.function
+def _hdiff_flux(im25, im15, im05, ip05, ip15, ip25, delta):
+    return (
+        -im25 * (1.0 / 90)
+        + im15 * (5.0 / 36.0)
+        - im05 * (49.0 / 36.0)
+        + ip05 * (49.0 / 36.0)
+        - ip15 * (5.0 / 36.0)
+        + ip25 * (1.0 / 90.0)
+    ) / delta
+
+
+@gtscript.function
+def _hdiff_limited_flux(im25, im15, im05, ip05, ip15, ip25, delta):
+    flux = _hdiff_flux(im25, im15, im05, ip05, ip15, ip25, delta)
+    return 0 if flux * (ip05 - im05) < 0 else flux
+
+
+@gtscript.function
+def _hadv_flux(im25, im15, im05, ip05, ip15, ip25, velocity, delta):
+    return (
+        -velocity
+        * (
+            im25 * (1.0 / 30.0)
+            - im15 * (1.0 / 4.0)
+            + im05
+            - ip05 * (1.0 / 3.0)
+            - ip15 * (1.0 / 2.0)
+            + ip25 * (1.0 / 20.0)
+        )
+        / delta
+    )
+
+
+@gtscript.function
+def _hadv_upwind_flux(im3, im2, im1, ic, ip1, ip2, ip3, velocity, delta):
+    return (
+        _hadv_flux(im3, im2, im1, ic, ip1, ip2, velocity, delta)
+        if velocity > 0
+        else _hadv_flux(ip3, ip2, ip1, ic, im1, im2, -velocity, delta)
+    )
+
+
 class StencilBackend(base.StencilBackend):
     def __init__(self, *, gt4py_backend="debug", **kwargs):
         super().__init__(**kwargs)
@@ -20,11 +63,7 @@ class StencilBackend(base.StencilBackend):
         )
 
     def hdiff_stencil(self, resolution, delta, diffusion_coeff):
-        @gtscript.function
-        def threshold(val, diff):
-            return 0 if val * diff < 0 else val
-
-        @gtscript.stencil(backend=self.gt4py_backend, externals={"threshold": threshold})
+        @gtscript.stencil(backend=self.gt4py_backend)
         def stencil(
             out: Field[self.dtype.type],
             inp: Field[self.dtype.type],
@@ -33,57 +72,23 @@ class StencilBackend(base.StencilBackend):
             dx: self.dtype.type,
             dy: self.dtype.type,
         ):
-
-            from __externals__ import threshold  # noqa
-
             with computation(PARALLEL), interval(...):
-                w_0 = -1.0 / 90.0
-                w_1 = 5.0 / 36.0
-                w_2 = -49.0 / 36.0
-                w_3 = 49.0 / 36.0
-                w_4 = -5.0 / 36.0
-                w_5 = 1.0 / 90.0
-                flx_x0 = (
-                    (w_0 * inp[-3, 0])
-                    + (w_1 * inp[-2, 0])
-                    + (w_2 * inp[-1, 0])
-                    + (w_3 * inp[0, 0])
-                    + (w_4 * inp[1, 0])
-                    + (w_5 * inp[2, 0])
-                ) / dx
-                flx_x1 = (
-                    (w_0 * inp[-2, 0])
-                    + (w_1 * inp[-1, 0])
-                    + (w_2 * inp[0, 0])
-                    + (w_3 * inp[1, 0])
-                    + (w_4 * inp[2, 0])
-                    + (w_5 * inp[3, 0])
-                ) / dx
-                flx_y0 = (
-                    (w_0 * inp[0, -3])
-                    + (w_1 * inp[0, -2])
-                    + (w_2 * inp[0, -1])
-                    + (w_3 * inp[0, 0])
-                    + (w_4 * inp[0, 1])
-                    + (w_5 * inp[0, 2])
-                ) / dy
-                flx_y1 = (
-                    (w_0 * inp[0, -2])
-                    + (w_1 * inp[0, -1])
-                    + (w_2 * inp[0, 0])
-                    + (w_3 * inp[0, 1])
-                    + (w_4 * inp[0, 2])
-                    + (w_5 * inp[0, 3])
-                ) / dy
-
-                flx_x0 = threshold(flx_x0, diff=inp - inp[-1, 0])
-                flx_x1 = threshold(flx_x1, diff=(inp[1, 0] - inp))
-                flx_y0 = threshold(flx_y0, diff=(inp - inp[0, -1]))
-                flx_y1 = threshold(flx_y1, diff=(inp[0, 1] - inp))
-
-                out = inp + (  # noqa (store result in out)
-                    coeff * dt * (((flx_x1 - flx_x0) / dx) + ((flx_y1 - flx_y0) / dy))
+                flx_x0 = _hdiff_limited_flux(
+                    inp[-3, 0], inp[-2, 0], inp[-1, 0], inp, inp[1, 0], inp[2, 0], dx
                 )
+                flx_x1 = _hdiff_limited_flux(
+                    inp[-2, 0], inp[-1, 0], inp, inp[1, 0], inp[2, 0], inp[3, 0], dx
+                )
+                flx_y0 = _hdiff_limited_flux(
+                    inp[0, -3], inp[0, -2], inp[0, -1], inp, inp[0, 1], inp[0, 2], dy
+                )
+                flx_y1 = _hdiff_limited_flux(
+                    inp[0, -2], inp[0, -1], inp, inp[0, 1], inp[0, 2], inp[0, 3], dy
+                )
+
+                out = inp + (
+                    coeff * dt * (((flx_x1 - flx_x0) / dx) + ((flx_y1 - flx_y0) / dy))
+                )  # noqa
 
         diffusion_coeff = self.dtype.type(diffusion_coeff)
         dx = self.dtype.type(delta[0])
@@ -105,7 +110,7 @@ class StencilBackend(base.StencilBackend):
 
     def vdiff_stencil(self, resolution, delta, diffusion_coeff):
         @gtscript.stencil(
-            backend=self.gt4py_backend, externals={"K_OFFSET": int(resolution[2] - 1)}
+            backend=self.gt4py_backend, externals={"k_offset": int(resolution[2] - 1)}
         )
         def stencil(
             out: Field[self.dtype.type],
@@ -114,14 +119,14 @@ class StencilBackend(base.StencilBackend):
             coeff: self.dtype.type,
             dz: self.dtype.type,
         ):
-            from __externals__ import K_OFFSET
+            from __externals__ import k_offset
 
             with computation(FORWARD):
                 with interval(0, 1):
                     ac = -coeff / (2.0 * dz * dz)
                     b = 1.0 / dt - 2 * ac
                     d = 1.0 / dt * inp + 0.5 * coeff * (
-                        inp[0, 0, K_OFFSET] - 2 * inp + inp[0, 0, 1]
+                        inp[0, 0, k_offset] - 2 * inp + inp[0, 0, 1]
                     ) / (dz * dz)
                     b = 2 * b
                     c = ac / b
@@ -142,7 +147,7 @@ class StencilBackend(base.StencilBackend):
                     ac = -coeff / (2 * dz * dz)
                     b = 1.0 / dt - 2 * ac
                     d = 1.0 / dt * inp + 0.5 * coeff * (
-                        inp[0, 0, -1] - 2 * inp + inp[0, 0, -K_OFFSET]
+                        inp[0, 0, -1] - 2 * inp + inp[0, 0, -k_offset]
                     ) / (dz * dz)
                     b = b + ac * ac / b
                     c = ac / (b - c[0, 0, -1] * ac)
@@ -159,8 +164,8 @@ class StencilBackend(base.StencilBackend):
                     gamma = -1.0 / dt - 2 * beta
                     d = d - c * d[0, 0, 1]
                     d2 = d2 - c2 * d2[0, 0, 1]
-                    fact = (d + beta * d[0, 0, K_OFFSET] / gamma) / (
-                        1 + d2 + beta * d2[0, 0, K_OFFSET] / gamma
+                    fact = (d + beta * d[0, 0, k_offset] / gamma) / (
+                        1 + d2 + beta * d2[0, 0, k_offset] / gamma
                     )
 
             with computation(FORWARD):
@@ -186,26 +191,8 @@ class StencilBackend(base.StencilBackend):
 
         return wrapper
 
-    @staticmethod
-    @gtscript.function
-    def _hadv_flux(im3, im2, im1, ic, ip1, ip2, ip3, velocity, delta):
-        from __externals__ import w0, w1, w2, w3, w4, w5
-
-        if_pos = -(
-            velocity * (w0 * im3 + w1 * im2 + w2 * im1 + w3 * ic + w4 * ip1 + w5 * ip2) / delta
-        )
-        if_neg = (
-            velocity * (w5 * im2 + w4 * im1 + w3 * ic + w2 * ip1 + w1 * ip2 + w0 * ip3) / delta
-        )
-        return if_pos if velocity > 0 else if_neg
-
     def hadv_stencil(self, resolution, delta):
-
-        weights = 1 / 30, -1 / 4, 1, -1 / 3, -1 / 2, 1 / 20
-        externals = {f"w{i}": self.dtype.type(w) for i, w in enumerate(weights)}
-        externals["flux"] = self._hadv_flux
-
-        @gtscript.stencil(backend=self.gt4py_backend, externals=externals)
+        @gtscript.stencil(backend=self.gt4py_backend)
         def stencil(
             out: Field[self.dtype.type],
             inp: Field[self.dtype.type],
@@ -215,13 +202,11 @@ class StencilBackend(base.StencilBackend):
             dx: self.dtype.type,
             dy: self.dtype.type,
         ):
-            from __externals__ import flux  # noqa
-
             with computation(PARALLEL), interval(...):
-                flux_x = flux(
+                flux_x = _hadv_upwind_flux(
                     inp[-3, 0], inp[-2, 0], inp[-1, 0], inp, inp[1, 0], inp[2, 0], inp[3, 0], u, dx
                 )
-                flux_y = flux(
+                flux_y = _hadv_upwind_flux(
                     inp[0, -3], inp[0, -2], inp[0, -1], inp, inp[0, 1], inp[0, 2], inp[0, 3], v, dy
                 )
                 out = inp - dt * (flux_x + flux_y)  # noqa
@@ -246,7 +231,7 @@ class StencilBackend(base.StencilBackend):
 
     def vadv_stencil(self, resolution, delta):
         @gtscript.stencil(
-            backend=self.gt4py_backend, externals={"K_OFFSET": int(resolution[2] - 1)}
+            backend=self.gt4py_backend, externals=dict(k_offset=int(resolution[2] - 1))
         )
         def stencil(
             out: Field[self.dtype.type],
@@ -255,14 +240,14 @@ class StencilBackend(base.StencilBackend):
             dt: self.dtype.type,
             dz: self.dtype.type,
         ):
-            from __externals__ import K_OFFSET
+            from __externals__ import k_offset
 
             with computation(FORWARD):
                 with interval(0, 1):
                     a = -0.25 * w / dz
                     c = 0.25 * w[0, 0, 1] / dz
                     b = 1.0 / dt - a - c
-                    d = 1.0 / dt * inp - c * (inp[0, 0, 1] - inp) + a * (inp - inp[0, 0, K_OFFSET])
+                    d = 1.0 / dt * inp - c * (inp[0, 0, 1] - inp) + a * (inp - inp[0, 0, k_offset])
                     alpha = -a
                     gamma = -b
                     b = 2 * b
@@ -285,11 +270,11 @@ class StencilBackend(base.StencilBackend):
 
                 with interval(-1, None):
                     a = -0.25 * w / dz
-                    c = 0.25 * w[0, 0, -K_OFFSET] / dz
+                    c = 0.25 * w[0, 0, -k_offset] / dz
                     b = 1.0 / dt - a - c
                     d = (
                         1.0 / dt * inp
-                        - c * (inp[0, 0, -K_OFFSET] - inp)
+                        - c * (inp[0, 0, -k_offset] - inp)
                         + a * (inp - inp[0, 0, -1])
                     )
                     # alpha and gamma could be 2D
@@ -305,8 +290,8 @@ class StencilBackend(base.StencilBackend):
                 with interval(0, 1):
                     d = d - c * d[0, 0, 1]
                     d2 = d2 - c2 * d2[0, 0, 1]
-                    fact = (d - alpha * d[0, 0, K_OFFSET] / gamma) / (
-                        1 + d2 - alpha * d2[0, 0, K_OFFSET] / gamma
+                    fact = (d - alpha * d[0, 0, k_offset] / gamma) / (
+                        1 + d2 - alpha * d2[0, 0, k_offset] / gamma
                     )
                 with interval(1, -1):
                     d = d - c * d[0, 0, 1]
@@ -329,12 +314,9 @@ class StencilBackend(base.StencilBackend):
         return wrapper
 
     def rkadv_stencil(self, resolution, delta):
-        weights = 1 / 30, -1 / 4, 1, -1 / 3, -1 / 2, 1 / 20
-        externals = {f"w{i}": self.dtype.type(w) for i, w in enumerate(weights)}
-        externals["flux"] = self._hadv_flux
-        externals["K_OFFSET"] = int(resolution[2] - 1)
-
-        @gtscript.stencil(backend=self.gt4py_backend, externals=externals)
+        @gtscript.stencil(
+            backend=self.gt4py_backend, externals=dict(k_offset=int(resolution[2] - 1))
+        )
         def stencil(
             out: Field[self.dtype.type],
             inp: Field[self.dtype.type],
@@ -347,14 +329,14 @@ class StencilBackend(base.StencilBackend):
             dy: self.dtype.type,
             dz: self.dtype.type,
         ):
-            from __externals__ import K_OFFSET, flux
+            from __externals__ import k_offset
 
             with computation(FORWARD):
                 with interval(0, 1):
                     a = -0.25 * w / dz
                     c = 0.25 * w[0, 0, 1] / dz
                     b = 1.0 / dt - a - c
-                    d = 1.0 / dt * inp - c * (inp[0, 0, 1] - inp) + a * (inp - inp[0, 0, K_OFFSET])
+                    d = 1.0 / dt * inp - c * (inp[0, 0, 1] - inp) + a * (inp - inp[0, 0, k_offset])
                     alpha = -a
                     gamma = -b
                     b = 2 * b
@@ -377,11 +359,11 @@ class StencilBackend(base.StencilBackend):
 
                 with interval(-1, None):
                     a = -0.25 * w / dz
-                    c = 0.25 * w[0, 0, -K_OFFSET] / dz
+                    c = 0.25 * w[0, 0, -k_offset] / dz
                     b = 1.0 / dt - a - c
                     d = (
                         1.0 / dt * inp
-                        - c * (inp[0, 0, -K_OFFSET] - inp)
+                        - c * (inp[0, 0, -k_offset] - inp)
                         + a * (inp - inp[0, 0, -1])
                     )
                     # alpha and gamma could be 2D
@@ -397,8 +379,8 @@ class StencilBackend(base.StencilBackend):
                 with interval(0, 1):
                     d = d - c * d[0, 0, 1]
                     d2 = d2 - c2 * d2[0, 0, 1]
-                    fact = (d - alpha * d[0, 0, K_OFFSET] / gamma) / (
-                        1 + d2 - alpha * d2[0, 0, K_OFFSET] / gamma
+                    fact = (d - alpha * d[0, 0, k_offset] / gamma) / (
+                        1 + d2 - alpha * d2[0, 0, k_offset] / gamma
                     )
                 with interval(1, -1):
                     d = d - c * d[0, 0, 1]
@@ -407,7 +389,7 @@ class StencilBackend(base.StencilBackend):
             with computation(FORWARD):
                 with interval(0, 1):
                     vout = d - fact * d2
-                    flx = flux(
+                    flx = _hadv_upwind_flux(
                         inp[-3, 0],
                         inp[-2, 0],
                         inp[-1, 0],
@@ -418,7 +400,7 @@ class StencilBackend(base.StencilBackend):
                         u,
                         dx,
                     )
-                    fly = flux(
+                    fly = _hadv_upwind_flux(
                         inp[0, -3],
                         inp[0, -2],
                         inp[0, -1],
@@ -433,7 +415,7 @@ class StencilBackend(base.StencilBackend):
                 with interval(1, None):
                     fact = fact[0, 0, -1]
                     vout = d - fact * d2
-                    flx = flux(
+                    flx = _hadv_upwind_flux(
                         inp[-3, 0],
                         inp[-2, 0],
                         inp[-1, 0],
@@ -444,7 +426,7 @@ class StencilBackend(base.StencilBackend):
                         u,
                         dx,
                     )
-                    fly = flux(
+                    fly = _hadv_upwind_flux(
                         inp[0, -3],
                         inp[0, -2],
                         inp[0, -1],
