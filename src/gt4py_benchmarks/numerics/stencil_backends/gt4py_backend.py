@@ -52,6 +52,8 @@ class StencilBackend(base.StencilBackend):
     def __init__(self, *, gt4py_backend="debug", **kwargs):
         super().__init__(**kwargs)
         self.gt4py_backend = gt4py_backend
+        self._field = Field[self.dtype.type]
+        self._scalar = self.dtype.type
 
     def storage_from_array(self, array):
         return storage.from_array(
@@ -65,59 +67,42 @@ class StencilBackend(base.StencilBackend):
     def hdiff_stencil(self, resolution, delta, diffusion_coeff):
         @gtscript.stencil(backend=self.gt4py_backend)
         def stencil(
-            out: Field[self.dtype.type],
-            inp: Field[self.dtype.type],
-            dt: self.dtype.type,
-            coeff: self.dtype.type,
-            dx: self.dtype.type,
-            dy: self.dtype.type,
+            out: self._field,
+            inp: self._field,
+            dt: self._scalar,
+            coeff: self._scalar,
+            dx: self._scalar,
+            dy: self._scalar,
         ):
             with computation(PARALLEL), interval(...):
-                flx_x0 = _hdiff_limited_flux(
+                flx = _hdiff_limited_flux(
                     inp[-3, 0], inp[-2, 0], inp[-1, 0], inp, inp[1, 0], inp[2, 0], dx
                 )
-                flx_x1 = _hdiff_limited_flux(
-                    inp[-2, 0], inp[-1, 0], inp, inp[1, 0], inp[2, 0], inp[3, 0], dx
-                )
-                flx_y0 = _hdiff_limited_flux(
+                fly = _hdiff_limited_flux(
                     inp[0, -3], inp[0, -2], inp[0, -1], inp, inp[0, 1], inp[0, 2], dy
                 )
-                flx_y1 = _hdiff_limited_flux(
-                    inp[0, -2], inp[0, -1], inp, inp[0, 1], inp[0, 2], inp[0, 3], dy
-                )
+                out = inp + coeff * dt * ((flx[1, 0] - flx) / dx + (fly[0, 1] - fly) / dy)
 
-                out = inp + (
-                    coeff * dt * (((flx_x1 - flx_x0) / dx) + ((flx_y1 - flx_y0) / dy))
-                )  # noqa
-
-        diffusion_coeff = self.dtype.type(diffusion_coeff)
-        dx = self.dtype.type(delta[0])
-        dy = self.dtype.type(delta[1])
-
-        def wrapper(out, inp, dt):
-            stencil(
-                out,
-                inp,
-                self.dtype.type(dt),
-                diffusion_coeff,
-                dx,
-                dy,
-                origin=(HALO, HALO, 0),
-                domain=resolution,
-            )
-
-        return wrapper
+        return lambda out, inp, dt: stencil(
+            out,
+            inp,
+            self._scalar(dt),
+            self._scalar(diffusion_coeff),
+            self._scalar(delta[0]),
+            self._scalar(delta[1]),
+            domain=resolution,
+        )
 
     def vdiff_stencil(self, resolution, delta, diffusion_coeff):
         @gtscript.stencil(
-            backend=self.gt4py_backend, externals={"k_offset": int(resolution[2] - 1)}
+            backend=self.gt4py_backend, externals=dict(k_offset=int(resolution[2] - 1))
         )
         def stencil(
-            out: Field[self.dtype.type],
-            inp: Field[self.dtype.type],
-            dt: self.dtype.type,
-            coeff: self.dtype.type,
-            dz: self.dtype.type,
+            out: self._field,
+            inp: self._field,
+            dt: self._scalar,
+            coeff: self._scalar,
+            dz: self._scalar,
         ):
             from __externals__ import k_offset
 
@@ -175,32 +160,25 @@ class StencilBackend(base.StencilBackend):
                     fact = fact[0, 0, -1]
                     out = d - fact * d2  # noqa: F841
 
-        diffusion_coeff = self.dtype.type(diffusion_coeff)
-        dz = self.dtype.type(delta[2])
-
-        def wrapper(out, inp, dt):
-            stencil(
-                out,
-                inp,
-                self.dtype.type(dt),
-                diffusion_coeff,
-                dz,
-                origin=(HALO, HALO, 0),
-                domain=resolution,
-            )
-
-        return wrapper
+        return lambda out, inp, dt: stencil(
+            out,
+            inp,
+            self._scalar(dt),
+            self._scalar(diffusion_coeff),
+            self._scalar(delta[2]),
+            domain=resolution,
+        )
 
     def hadv_stencil(self, resolution, delta):
         @gtscript.stencil(backend=self.gt4py_backend)
         def stencil(
-            out: Field[self.dtype.type],
-            inp: Field[self.dtype.type],
-            u: Field[self.dtype.type],
-            v: Field[self.dtype.type],
-            dt: self.dtype.type,
-            dx: self.dtype.type,
-            dy: self.dtype.type,
+            out: self._field,
+            inp: self._field,
+            u: self._field,
+            v: self._field,
+            dt: self._scalar,
+            dx: self._scalar,
+            dy: self._scalar,
         ):
             with computation(PARALLEL), interval(...):
                 flux_x = _hadv_upwind_flux(
@@ -211,34 +189,23 @@ class StencilBackend(base.StencilBackend):
                 )
                 out = inp - dt * (flux_x + flux_y)  # noqa
 
-        dx = self.dtype.type(delta[0])
-        dy = self.dtype.type(delta[1])
-
-        def wrapper(out, inp, u, v, dt):
-            stencil(
-                out,
-                inp,
-                u,
-                v,
-                self.dtype.type(dt),
-                dx,
-                dy,
-                origin=(HALO, HALO, 0),
-                domain=resolution,
-            )
-
-        return wrapper
+        return lambda out, inp, u, v, dt: stencil(
+            out,
+            inp,
+            u,
+            v,
+            self._scalar(dt),
+            self._scalar(delta[0]),
+            self._scalar(delta[1]),
+            domain=resolution,
+        )
 
     def vadv_stencil(self, resolution, delta):
         @gtscript.stencil(
             backend=self.gt4py_backend, externals=dict(k_offset=int(resolution[2] - 1))
         )
         def stencil(
-            out: Field[self.dtype.type],
-            inp: Field[self.dtype.type],
-            w: Field[self.dtype.type],
-            dt: self.dtype.type,
-            dz: self.dtype.type,
+            out: self._field, inp: self._field, w: self._field, dt: self._scalar, dz: self._scalar
         ):
             from __externals__ import k_offset
 
@@ -304,30 +271,25 @@ class StencilBackend(base.StencilBackend):
                     fact = fact[0, 0, -1]
                     out = d - fact * d2  # noqa
 
-        dz = self.dtype.type(delta[2])
-
-        def wrapper(out, inp, w, dt):
-            stencil(
-                out, inp, w, self.dtype.type(dt), dz, origin=(HALO, HALO, 0), domain=resolution
-            )
-
-        return wrapper
+        return lambda out, inp, w, dt: stencil(
+            out, inp, w, self._scalar(dt), self._scalar(delta[2]), domain=resolution
+        )
 
     def rkadv_stencil(self, resolution, delta):
         @gtscript.stencil(
             backend=self.gt4py_backend, externals=dict(k_offset=int(resolution[2] - 1))
         )
         def stencil(
-            out: Field[self.dtype.type],
-            inp: Field[self.dtype.type],
-            inp0: Field[self.dtype.type],
-            u: Field[self.dtype.type],
-            v: Field[self.dtype.type],
-            w: Field[self.dtype.type],
-            dt: self.dtype.type,
-            dx: self.dtype.type,
-            dy: self.dtype.type,
-            dz: self.dtype.type,
+            out: self._field,
+            inp: self._field,
+            inp0: self._field,
+            u: self._field,
+            v: self._field,
+            w: self._field,
+            dt: self._scalar,
+            dx: self._scalar,
+            dy: self._scalar,
+            dz: self._scalar,
         ):
             from __externals__ import k_offset
 
@@ -386,77 +348,33 @@ class StencilBackend(base.StencilBackend):
                     d = d - c * d[0, 0, 1]
                     d2 = d2 - c2 * d2[0, 0, 1]
 
+            with computation(PARALLEL), interval(...):
+                flx = _hadv_upwind_flux(
+                    inp[-3, 0], inp[-2, 0], inp[-1, 0], inp, inp[1, 0], inp[2, 0], inp[3, 0], u, dx
+                )
+                fly = _hadv_upwind_flux(
+                    inp[0, -3], inp[0, -2], inp[0, -1], inp, inp[0, 1], inp[0, 2], inp[0, 3], v, dy
+                )
+
             with computation(FORWARD):
                 with interval(0, 1):
                     vout = d - fact * d2
-                    flx = _hadv_upwind_flux(
-                        inp[-3, 0],
-                        inp[-2, 0],
-                        inp[-1, 0],
-                        inp,
-                        inp[1, 0],
-                        inp[2, 0],
-                        inp[3, 0],
-                        u,
-                        dx,
-                    )
-                    fly = _hadv_upwind_flux(
-                        inp[0, -3],
-                        inp[0, -2],
-                        inp[0, -1],
-                        inp,
-                        inp[0, 1],
-                        inp[0, 2],
-                        inp[0, 3],
-                        v,
-                        dy,
-                    )
                     out = inp0 - dt * (flx + fly) + (vout - inp)
                 with interval(1, None):
                     fact = fact[0, 0, -1]
                     vout = d - fact * d2
-                    flx = _hadv_upwind_flux(
-                        inp[-3, 0],
-                        inp[-2, 0],
-                        inp[-1, 0],
-                        inp,
-                        inp[1, 0],
-                        inp[2, 0],
-                        inp[3, 0],
-                        u,
-                        dx,
-                    )
-                    fly = _hadv_upwind_flux(
-                        inp[0, -3],
-                        inp[0, -2],
-                        inp[0, -1],
-                        inp,
-                        inp[0, 1],
-                        inp[0, 2],
-                        inp[0, 3],
-                        v,
-                        dy,
-                    )
                     out = inp0 - dt * (flx + fly) + (vout - inp)  # noqa
 
-        dx = self.dtype.type(delta[0])
-        dy = self.dtype.type(delta[1])
-        dz = self.dtype.type(delta[2])
-
-        def wrapper(out, inp, inp0, u, v, w, dt):
-            stencil(
-                out,
-                inp,
-                inp0,
-                u,
-                v,
-                w,
-                self.dtype.type(dt),
-                dx,
-                dy,
-                dz,
-                origin=(HALO, HALO, 0),
-                domain=resolution,
-            )
-
-        return wrapper
+        return lambda out, inp, inp0, u, v, w, dt: stencil(
+            out,
+            inp,
+            inp0,
+            u,
+            v,
+            w,
+            self._scalar(dt),
+            self._scalar(delta[0]),
+            self._scalar(delta[1]),
+            self._scalar(delta[2]),
+            domain=resolution,
+        )
