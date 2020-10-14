@@ -82,6 +82,30 @@ def full_advection():
     return AnalyticalSolution(domain=(4 * np.pi, 4 * np.pi, 4 * np.pi), data=data, u=u, v=v, w=w)
 
 
+def advection_diffusion(diffusion_coeff):
+    a = np.sqrt(2) / 2
+
+    def data(x, y, z, t):
+        return -np.sin(x) * np.sin(a * (y - z)) * np.exp(-2 * diffusion_coeff * t)
+
+    def u(x, y, z, t):
+        return -np.sin(x) * np.cos(a * (y - z))
+
+    def v(x, y, z, t):
+        return a * np.cos(x) * np.sin(a * (y - z))
+
+    def w(x, y, z, t):
+        return -a * np.cos(x) * np.sin(a * (y - z))
+
+    return AnalyticalSolution(
+        domain=(2 * np.pi, 2 * np.pi * np.sqrt(2), 2 * np.pi * np.sqrt(2)),
+        data=data,
+        u=u,
+        v=v,
+        w=w,
+    )
+
+
 def repeat(analytical: AnalyticalSolution, repeats: typing.Tuple[int, int, int]):
     def remap(f):
         @functools.wraps(f)

@@ -57,6 +57,11 @@ def run_convergence_tests(runtime):
         analytical.full_advection(),
         runtime.stencil_backend.rkadv_stepper(),
     )
+    run_tests(
+        "ADVECTION-DIFFUSION",
+        analytical.advection_diffusion(diffusion_coeff),
+        runtime.stencil_backend.advdiff_stepper(diffusion_coeff),
+    )
 
 
 @click.command()
