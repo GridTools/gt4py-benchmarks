@@ -52,6 +52,11 @@ def run_convergence_tests(runtime):
         analytical.vertical_advection(),
         runtime.stencil_backend.vadv_stepper(),
     )
+    run_tests(
+        "RUNGE-KUTTA ADVECTION",
+        analytical.full_advection(),
+        runtime.stencil_backend.rkadv_stepper(),
+    )
 
 
 @click.command()

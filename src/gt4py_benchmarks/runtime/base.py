@@ -29,7 +29,7 @@ class Runtime(abc.ABC):
         return SolverState(
             discrete_solution.local_resolution,
             discrete_solution.delta,
-            [self.stencil_backend.storage_from_array(data) for _ in range(2)],
+            [self.stencil_backend.storage_from_array(data) for _ in range(3)],
             self.stencil_backend.storage_from_array(u),
             self.stencil_backend.storage_from_array(v),
             self.stencil_backend.storage_from_array(w),

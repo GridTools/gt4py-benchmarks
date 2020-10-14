@@ -24,17 +24,17 @@ class StencilBackend(abc.ABC):
     def vdiff_stencil(self, resolution, delta, diffusion_coeff):
         pass
 
-    # @abc.abstractmethod
-    # def hadv_stencil(self):
-    # pass
+    @abc.abstractmethod
+    def hadv_stencil(self, resolution, delta):
+        pass
 
-    # @abc.abstractmethod
-    # def vadv_stencil(self):
-    # pass
+    @abc.abstractmethod
+    def vadv_stencil(self, resolution, delta):
+        pass
 
-    # @abc.abstractmethod
-    # def rkadv_stencil(self):
-    # pass
+    @abc.abstractmethod
+    def rkadv_stencil(self, resolution, delta):
+        pass
 
     def hdiff_stepper(self, diffusion_coeff):
         def stepper(state, exchange):

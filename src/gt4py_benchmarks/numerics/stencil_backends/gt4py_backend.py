@@ -186,22 +186,24 @@ class StencilBackend(base.StencilBackend):
 
         return wrapper
 
-    def hadv_stencil(self, resolution, delta):
-        @gtscript.function
-        def flux(im3, im2, im1, ic, ip1, ip2, ip3, velocity, delta):
-            from __externals__ import w0, w1, w2, w3, w4, w5
+    @staticmethod
+    @gtscript.function
+    def _hadv_flux(im3, im2, im1, ic, ip1, ip2, ip3, velocity, delta):
+        from __externals__ import w0, w1, w2, w3, w4, w5
 
-            if_pos = -(
-                velocity * (w0 * im3 + w1 * im2 + w2 * im1 + w3 * ic + w4 * ip1 + w5 * ip2) / delta
-            )
-            if_neg = (
-                velocity * (w5 * im2 + w4 * im1 + w3 * ic + w2 * ip1 + w1 * ip2 + w0 * ip3) / delta
-            )
-            return if_pos if velocity > 0 else if_neg
+        if_pos = -(
+            velocity * (w0 * im3 + w1 * im2 + w2 * im1 + w3 * ic + w4 * ip1 + w5 * ip2) / delta
+        )
+        if_neg = (
+            velocity * (w5 * im2 + w4 * im1 + w3 * ic + w2 * ip1 + w1 * ip2 + w0 * ip3) / delta
+        )
+        return if_pos if velocity > 0 else if_neg
+
+    def hadv_stencil(self, resolution, delta):
 
         weights = 1 / 30, -1 / 4, 1, -1 / 3, -1 / 2, 1 / 20
         externals = {f"w{i}": self.dtype.type(w) for i, w in enumerate(weights)}
-        externals["flux"] = flux
+        externals["flux"] = self._hadv_flux
 
         @gtscript.stencil(backend=self.gt4py_backend, externals=externals)
         def stencil(
@@ -322,6 +324,157 @@ class StencilBackend(base.StencilBackend):
         def wrapper(out, inp, w, dt):
             stencil(
                 out, inp, w, self.dtype.type(dt), dz, origin=(HALO, HALO, 0), domain=resolution
+            )
+
+        return wrapper
+
+    def rkadv_stencil(self, resolution, delta):
+        weights = 1 / 30, -1 / 4, 1, -1 / 3, -1 / 2, 1 / 20
+        externals = {f"w{i}": self.dtype.type(w) for i, w in enumerate(weights)}
+        externals["flux"] = self._hadv_flux
+        externals["K_OFFSET"] = int(resolution[2] - 1)
+
+        @gtscript.stencil(backend=self.gt4py_backend, externals=externals)
+        def stencil(
+            out: Field[self.dtype.type],
+            inp: Field[self.dtype.type],
+            inp0: Field[self.dtype.type],
+            u: Field[self.dtype.type],
+            v: Field[self.dtype.type],
+            w: Field[self.dtype.type],
+            dt: self.dtype.type,
+            dx: self.dtype.type,
+            dy: self.dtype.type,
+            dz: self.dtype.type,
+        ):
+            from __externals__ import K_OFFSET, flux
+
+            with computation(FORWARD):
+                with interval(0, 1):
+                    a = -0.25 * w / dz
+                    c = 0.25 * w[0, 0, 1] / dz
+                    b = 1.0 / dt - a - c
+                    d = 1.0 / dt * inp - c * (inp[0, 0, 1] - inp) + a * (inp - inp[0, 0, K_OFFSET])
+                    alpha = -a
+                    gamma = -b
+                    b = 2 * b
+                    c = c / b
+                    d = d / b
+                    c2 = c / b
+                    d2 = gamma / b
+                with interval(1, -1):
+                    a = -0.25 * w / dz
+                    c = 0.25 * w[0, 0, 1] / dz
+                    b = 1.0 / dt - a - c
+                    d = 1.0 / dt * inp - c * (inp[0, 0, 1] - inp) + a * (inp - inp[0, 0, -1])
+                    # alpha and gamma could be 2D
+                    alpha = alpha[0, 0, -1]
+                    gamma = gamma[0, 0, -1]
+                    c = c / (b - c[0, 0, -1] * a)
+                    d = (d - a * d[0, 0, -1]) / (b - c[0, 0, -1] * a)
+                    c2 = c / (b - c2[0, 0, -1] * a)
+                    d2 = (-a * d2[0, 0, -1]) / (b - c2[0, 0, -1] * a)
+
+                with interval(-1, None):
+                    a = -0.25 * w / dz
+                    c = 0.25 * w[0, 0, -K_OFFSET] / dz
+                    b = 1.0 / dt - a - c
+                    d = (
+                        1.0 / dt * inp
+                        - c * (inp[0, 0, -K_OFFSET] - inp)
+                        + a * (inp - inp[0, 0, -1])
+                    )
+                    # alpha and gamma could be 2D
+                    alpha = alpha[0, 0, -1]
+                    gamma = gamma[0, 0, -1]
+                    b = b + alpha * alpha / gamma
+                    c = c / (b - c[0, 0, -1] * a)
+                    d = (d - a * d[0, 0, -1]) / (b - c[0, 0, -1] * a)
+                    c2 = c / (b - c2[0, 0, -1] * a)
+                    d2 = (alpha - a * d2[0, 0, -1]) / (b - c2[0, 0, -1] * a)
+
+            with computation(BACKWARD):
+                with interval(0, 1):
+                    d = d - c * d[0, 0, 1]
+                    d2 = d2 - c2 * d2[0, 0, 1]
+                    fact = (d - alpha * d[0, 0, K_OFFSET] / gamma) / (
+                        1 + d2 - alpha * d2[0, 0, K_OFFSET] / gamma
+                    )
+                with interval(1, -1):
+                    d = d - c * d[0, 0, 1]
+                    d2 = d2 - c2 * d2[0, 0, 1]
+
+            with computation(FORWARD):
+                with interval(0, 1):
+                    vout = d - fact * d2
+                    flx = flux(
+                        inp[-3, 0],
+                        inp[-2, 0],
+                        inp[-1, 0],
+                        inp,
+                        inp[1, 0],
+                        inp[2, 0],
+                        inp[3, 0],
+                        u,
+                        dx,
+                    )
+                    fly = flux(
+                        inp[0, -3],
+                        inp[0, -2],
+                        inp[0, -1],
+                        inp,
+                        inp[0, 1],
+                        inp[0, 2],
+                        inp[0, 3],
+                        v,
+                        dy,
+                    )
+                    out = inp0 - dt * (flx + fly) + (vout - inp)
+                with interval(1, None):
+                    fact = fact[0, 0, -1]
+                    vout = d - fact * d2
+                    flx = flux(
+                        inp[-3, 0],
+                        inp[-2, 0],
+                        inp[-1, 0],
+                        inp,
+                        inp[1, 0],
+                        inp[2, 0],
+                        inp[3, 0],
+                        u,
+                        dx,
+                    )
+                    fly = flux(
+                        inp[0, -3],
+                        inp[0, -2],
+                        inp[0, -1],
+                        inp,
+                        inp[0, 1],
+                        inp[0, 2],
+                        inp[0, 3],
+                        v,
+                        dy,
+                    )
+                    out = inp0 - dt * (flx + fly) + (vout - inp)  # noqa
+
+        dx = self.dtype.type(delta[0])
+        dy = self.dtype.type(delta[1])
+        dz = self.dtype.type(delta[2])
+
+        def wrapper(out, inp, inp0, u, v, w, dt):
+            stencil(
+                out,
+                inp,
+                inp0,
+                u,
+                v,
+                w,
+                self.dtype.type(dt),
+                dx,
+                dy,
+                dz,
+                origin=(HALO, HALO, 0),
+                domain=resolution,
             )
 
         return wrapper

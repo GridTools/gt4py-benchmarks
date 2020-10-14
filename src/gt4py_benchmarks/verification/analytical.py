@@ -66,6 +66,22 @@ def vertical_advection():
     return AnalyticalSolution(domain=(4 * np.pi, 4 * np.pi, 4 * np.pi), data=data, w=w)
 
 
+def full_advection():
+    def data(x, y, z, t):
+        return np.sin(x - 5 * t) * np.cos(y + 2 * t) * np.cos(z - 3 * t)
+
+    def u(x, y, z, t):
+        return np.full_like(x, 5)
+
+    def v(x, y, z, t):
+        return np.full_like(x, -2)
+
+    def w(x, y, z, t):
+        return np.full_like(x, 3)
+
+    return AnalyticalSolution(domain=(4 * np.pi, 4 * np.pi, 4 * np.pi), data=data, u=u, v=v, w=w)
+
+
 def repeat(analytical: AnalyticalSolution, repeats: typing.Tuple[int, int, int]):
     def remap(f):
         @functools.wraps(f)
