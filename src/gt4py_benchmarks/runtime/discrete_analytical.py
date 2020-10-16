@@ -47,7 +47,7 @@ class _DiscreteAnalyticalSolution(typing.NamedTuple):
 
     @property
     def w(self) -> typing.Callable[[int, int, int, float], np.array]:
-        return self._remap(self.analytical.w)
+        return self._remap(self.analytical.w, staggered_z=True)
 
 
 def discretize(analytical, global_resolution, local_resolution, local_offset):
