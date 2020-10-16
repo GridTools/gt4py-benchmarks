@@ -108,9 +108,9 @@ class StencilBackend(base.StencilBackend):
 
             with computation(FORWARD):
                 with interval(0, 1):
-                    ac = -coeff / (2.0 * dz * dz)
-                    b = 1.0 / dt - 2 * ac
-                    d = 1.0 / dt * inp + 0.5 * coeff * (
+                    ac = -coeff / (2 * dz * dz)
+                    b = 1 / dt - 2 * ac
+                    d = 1 / dt * inp + 0.5 * coeff * (
                         inp[0, 0, k_offset] - 2 * inp + inp[0, 0, 1]
                     ) / (dz * dz)
                     b = 2 * b
@@ -120,8 +120,8 @@ class StencilBackend(base.StencilBackend):
                     d2 = -0.5
                 with interval(1, -1):
                     ac = -coeff / (2 * dz * dz)
-                    b = 1.0 / dt - 2 * ac
-                    d = 1.0 / dt * inp + 0.5 * coeff * (inp[0, 0, -1] - 2 * inp + inp[0, 0, 1]) / (
+                    b = 1 / dt - 2 * ac
+                    d = 1 / dt * inp + 0.5 * coeff * (inp[0, 0, -1] - 2 * inp + inp[0, 0, 1]) / (
                         dz * dz
                     )
                     c = ac / (b - c[0, 0, -1] * ac)
@@ -130,8 +130,8 @@ class StencilBackend(base.StencilBackend):
                     d2 = (-ac * d2[0, 0, -1]) / (b - c2[0, 0, -1] * ac)
                 with interval(-1, None):
                     ac = -coeff / (2 * dz * dz)
-                    b = 1.0 / dt - 2 * ac
-                    d = 1.0 / dt * inp + 0.5 * coeff * (
+                    b = 1 / dt - 2 * ac
+                    d = 1 / dt * inp + 0.5 * coeff * (
                         inp[0, 0, -1] - 2 * inp + inp[0, 0, -k_offset]
                     ) / (dz * dz)
                     b = b + ac * ac / b
@@ -147,10 +147,10 @@ class StencilBackend(base.StencilBackend):
 
             with computation(FORWARD):
                 with interval(0, 1):
-                    beta = -coeff / (2.0 * dz * dz)
-                    gamma = -(1.0 / dt - 2.0 * beta)
+                    beta = -coeff / (2 * dz * dz)
+                    gamma = -(1 / dt - 2 * beta)
                     fact = (d + beta * d[0, 0, k_offset] / gamma) / (
-                        1.0 + d2 + beta * d2[0, 0, k_offset] / gamma
+                        1 + d2 + beta * d2[0, 0, k_offset] / gamma
                     )
                     out = d - fact * d2
                 with interval(1, None):
@@ -210,8 +210,8 @@ class StencilBackend(base.StencilBackend):
                 with interval(0, 1):
                     a = -0.25 * w / dz
                     c = 0.25 * w[0, 0, 1] / dz
-                    b = 1.0 / dt - a - c
-                    d = 1.0 / dt * inp - c * (inp[0, 0, 1] - inp) + a * (inp - inp[0, 0, k_offset])
+                    b = 1 / dt - a - c
+                    d = 1 / dt * inp - c * (inp[0, 0, 1] - inp) + a * (inp - inp[0, 0, k_offset])
                     alpha = -a
                     gamma = -b
                     b = 2 * b
@@ -222,8 +222,8 @@ class StencilBackend(base.StencilBackend):
                 with interval(1, -1):
                     a = -0.25 * w / dz
                     c = 0.25 * w[0, 0, 1] / dz
-                    b = 1.0 / dt - a - c
-                    d = 1.0 / dt * inp - c * (inp[0, 0, 1] - inp) + a * (inp - inp[0, 0, -1])
+                    b = 1 / dt - a - c
+                    d = 1 / dt * inp - c * (inp[0, 0, 1] - inp) + a * (inp - inp[0, 0, -1])
                     # alpha and gamma could be 2D
                     alpha = alpha[0, 0, -1]
                     gamma = gamma[0, 0, -1]
@@ -235,12 +235,8 @@ class StencilBackend(base.StencilBackend):
                 with interval(-1, None):
                     a = -0.25 * w / dz
                     c = 0.25 * w[0, 0, -k_offset] / dz
-                    b = 1.0 / dt - a - c
-                    d = (
-                        1.0 / dt * inp
-                        - c * (inp[0, 0, -k_offset] - inp)
-                        + a * (inp - inp[0, 0, -1])
-                    )
+                    b = 1 / dt - a - c
+                    d = 1 / dt * inp - c * (inp[0, 0, -k_offset] - inp) + a * (inp - inp[0, 0, -1])
                     # alpha and gamma could be 2D
                     alpha = alpha[0, 0, -1]
                     gamma = gamma[0, 0, -1]
@@ -291,8 +287,8 @@ class StencilBackend(base.StencilBackend):
                 with interval(0, 1):
                     a = -0.25 * w / dz
                     c = 0.25 * w[0, 0, 1] / dz
-                    b = 1.0 / dt - a - c
-                    d = 1.0 / dt * inp - c * (inp[0, 0, 1] - inp) + a * (inp - inp[0, 0, k_offset])
+                    b = 1 / dt - a - c
+                    d = 1 / dt * inp - c * (inp[0, 0, 1] - inp) + a * (inp - inp[0, 0, k_offset])
                     alpha = -a
                     gamma = -b
                     b = 2 * b
@@ -303,8 +299,8 @@ class StencilBackend(base.StencilBackend):
                 with interval(1, -1):
                     a = -0.25 * w / dz
                     c = 0.25 * w[0, 0, 1] / dz
-                    b = 1.0 / dt - a - c
-                    d = 1.0 / dt * inp - c * (inp[0, 0, 1] - inp) + a * (inp - inp[0, 0, -1])
+                    b = 1 / dt - a - c
+                    d = 1 / dt * inp - c * (inp[0, 0, 1] - inp) + a * (inp - inp[0, 0, -1])
                     # alpha and gamma could be 2D
                     alpha = alpha[0, 0, -1]
                     gamma = gamma[0, 0, -1]
@@ -316,12 +312,8 @@ class StencilBackend(base.StencilBackend):
                 with interval(-1, None):
                     a = -0.25 * w / dz
                     c = 0.25 * w[0, 0, -k_offset] / dz
-                    b = 1.0 / dt - a - c
-                    d = (
-                        1.0 / dt * inp
-                        - c * (inp[0, 0, -k_offset] - inp)
-                        + a * (inp - inp[0, 0, -1])
-                    )
+                    b = 1 / dt - a - c
+                    d = 1 / dt * inp - c * (inp[0, 0, -k_offset] - inp) + a * (inp - inp[0, 0, -1])
                     # alpha and gamma could be 2D
                     alpha = alpha[0, 0, -1]
                     gamma = gamma[0, 0, -1]
@@ -332,30 +324,63 @@ class StencilBackend(base.StencilBackend):
                     d2 = (alpha - a * d2[0, 0, -1]) / (b - c2[0, 0, -1] * a)
 
             with computation(BACKWARD):
-                with interval(0, 1):
+                with interval(0, -1):
                     d = d - c * d[0, 0, 1]
                     d2 = d2 - c2 * d2[0, 0, 1]
-                    fact = (d - alpha * d[0, 0, k_offset] / gamma) / (
-                        1 + d2 - alpha * d2[0, 0, k_offset] / gamma
-                    )
-                with interval(1, -1):
-                    d = d - c * d[0, 0, 1]
-                    d2 = d2 - c2 * d2[0, 0, 1]
-
-            with computation(PARALLEL), interval(...):
-                flx = _hadv_upwind_flux(
-                    inp[-3, 0], inp[-2, 0], inp[-1, 0], inp, inp[1, 0], inp[2, 0], inp[3, 0], u, dx
-                )
-                fly = _hadv_upwind_flux(
-                    inp[0, -3], inp[0, -2], inp[0, -1], inp, inp[0, 1], inp[0, 2], inp[0, 3], v, dy
-                )
 
             with computation(FORWARD):
                 with interval(0, 1):
+                    fact = (d - alpha * d[0, 0, k_offset] / gamma) / (
+                        1 + d2 - alpha * d2[0, 0, k_offset] / gamma
+                    )
+                    flx = _hadv_upwind_flux(
+                        inp[-3, 0],
+                        inp[-2, 0],
+                        inp[-1, 0],
+                        inp,
+                        inp[1, 0],
+                        inp[2, 0],
+                        inp[3, 0],
+                        u,
+                        dx,
+                    )
+                    fly = _hadv_upwind_flux(
+                        inp[0, -3],
+                        inp[0, -2],
+                        inp[0, -1],
+                        inp,
+                        inp[0, 1],
+                        inp[0, 2],
+                        inp[0, 3],
+                        v,
+                        dy,
+                    )
                     vout = d - fact * d2
                     out = inp0 - dt * (flx + fly) + (vout - inp)
                 with interval(1, None):
                     fact = fact[0, 0, -1]
+                    flx = _hadv_upwind_flux(
+                        inp[-3, 0],
+                        inp[-2, 0],
+                        inp[-1, 0],
+                        inp,
+                        inp[1, 0],
+                        inp[2, 0],
+                        inp[3, 0],
+                        u,
+                        dx,
+                    )
+                    fly = _hadv_upwind_flux(
+                        inp[0, -3],
+                        inp[0, -2],
+                        inp[0, -1],
+                        inp,
+                        inp[0, 1],
+                        inp[0, 2],
+                        inp[0, 3],
+                        v,
+                        dy,
+                    )
                     vout = d - fact * d2
                     out = inp0 - dt * (flx + fly) + (vout - inp)  # noqa
 
