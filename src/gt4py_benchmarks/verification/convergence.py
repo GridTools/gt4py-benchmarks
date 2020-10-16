@@ -11,7 +11,10 @@ class OrderVerificationResult(typing.NamedTuple):
     def __str__(self):
         s = "{:15} {:15} {:15}\n".format("Resolution", "Error", "Order")
         for n, e, o in zip(self.ns, self.errors, self.orders):
-            s += f"{n:15} {e:15.5e} {o:15.2f}\n"
+            s += f"{n:<15} {e:<15.5e}"
+            if not np.isnan(o):
+                s += f" {o:<15.2f}"
+            s += "\n"
         return s
 
 
