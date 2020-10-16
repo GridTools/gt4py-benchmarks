@@ -141,20 +141,17 @@ class StencilBackend(base.StencilBackend):
                     d2 = (ac - ac * d2[0, 0, -1]) / (b - c2[0, 0, -1] * ac)
 
             with computation(BACKWARD):
-                with interval(1, -1):
+                with interval(0, -1):
                     d = d - c * d[0, 0, 1]
                     d2 = d2 - c2 * d2[0, 0, 1]
-                with interval(0, 1):
-                    beta = -coeff / (2 * dz * dz)
-                    gamma = -1.0 / dt - 2 * beta
-                    d = d - c * d[0, 0, 1]
-                    d2 = d2 - c2 * d2[0, 0, 1]
-                    fact = (d + beta * d[0, 0, k_offset] / gamma) / (
-                        1 + d2 + beta * d2[0, 0, k_offset] / gamma
-                    )
 
             with computation(FORWARD):
                 with interval(0, 1):
+                    beta = -coeff / (2.0 * dz * dz)
+                    gamma = -(1.0 / dt - 2.0 * beta)
+                    fact = (d + beta * d[0, 0, k_offset] / gamma) / (
+                        1.0 + d2 + beta * d2[0, 0, k_offset] / gamma
+                    )
                     out = d - fact * d2
                 with interval(1, None):
                     fact = fact[0, 0, -1]
@@ -254,18 +251,15 @@ class StencilBackend(base.StencilBackend):
                     d2 = (alpha - a * d2[0, 0, -1]) / (b - c2[0, 0, -1] * a)
 
             with computation(BACKWARD):
-                with interval(0, 1):
-                    d = d - c * d[0, 0, 1]
-                    d2 = d2 - c2 * d2[0, 0, 1]
-                    fact = (d - alpha * d[0, 0, k_offset] / gamma) / (
-                        1 + d2 - alpha * d2[0, 0, k_offset] / gamma
-                    )
-                with interval(1, -1):
+                with interval(0, -1):
                     d = d - c * d[0, 0, 1]
                     d2 = d2 - c2 * d2[0, 0, 1]
 
             with computation(FORWARD):
                 with interval(0, 1):
+                    fact = (d - alpha * d[0, 0, k_offset] / gamma) / (
+                        1 + d2 - alpha * d2[0, 0, k_offset] / gamma
+                    )
                     out = d - fact * d2
                 with interval(1, None):
                     fact = fact[0, 0, -1]
