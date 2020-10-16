@@ -28,7 +28,7 @@ class Runtime(base.Runtime):
         start = time.perf_counter()
 
         t = dt
-        while t < tmax:
+        while t < tmax - dt / 2:
             step(state, dt)
             t += dt
 
