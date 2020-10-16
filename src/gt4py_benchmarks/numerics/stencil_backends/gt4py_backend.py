@@ -1,5 +1,7 @@
 from gt4py import gtscript, storage
 from gt4py.gtscript import Field, computation, interval, FORWARD, BACKWARD, PARALLEL
+import numpy as np
+import typing_extensions
 
 from . import base
 from ...constants import HALO
@@ -48,12 +50,15 @@ def _hadv_upwind_flux(im3, im2, im1, ic, ip1, ip2, ip3, velocity, delta):
     )
 
 
-class StencilBackend(base.StencilBackend):
-    def __init__(self, *, gt4py_backend="debug", **kwargs):
+class GT4PyStencilBackend(base.StencilBackend):
+    gt4py_backend: typing_extensions.Literal[
+        "debug", "numpy", "gtx86", "gtmc", "gtcuda", "dacex86", "dacecuda"
+    ]
+
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.gt4py_backend = gt4py_backend
-        self._field = Field[self.dtype.type]
-        self._scalar = self.dtype.type
+        self._field = Field[np.dtype(self.dtype).type]
+        self._scalar = np.dtype(self.dtype).type
 
     def storage_from_array(self, array):
         return storage.from_array(

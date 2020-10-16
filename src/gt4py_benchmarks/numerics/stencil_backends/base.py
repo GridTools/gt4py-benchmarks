@@ -1,13 +1,15 @@
 import abc
 
 import numpy as np
+import pydantic
 
 from ...constants import HALO
+from ...utils import registry
 
 
-class StencilBackend(abc.ABC):
-    def __init__(self, *, dtype):
-        self.dtype = np.dtype(dtype)
+@registry.subclass_registry
+class StencilBackend(pydantic.BaseModel, abc.ABC):
+    dtype: str
 
     @abc.abstractmethod
     def storage_from_array(self, array):
@@ -149,3 +151,7 @@ class StencilBackend(abc.ABC):
             return step
 
         return stepper
+
+    class Config:
+        arbitrary_types_allowed = True
+        extra = "allow"

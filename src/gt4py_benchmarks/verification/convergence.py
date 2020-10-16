@@ -37,7 +37,7 @@ class ConvergenceTestResult(typing.NamedTuple):
 
 
 def default_convergence_test(runtime, analytical, stepper):
-    dtype = runtime.stencil_backend.dtype
+    dtype = np.dtype(runtime.stencil_backend.dtype)
 
     def spatial_error(n):
         tmax = 2e-2 if dtype == np.float32 else 1e-3

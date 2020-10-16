@@ -2,9 +2,12 @@ import abc
 import typing
 
 import numpy as np
+import pydantic
 
-from ..constants import HALO
-from ..numerics.solver import SolverState
+from ...constants import HALO
+from ...numerics.solver import SolverState
+from ...numerics.stencil_backends.base import StencilBackend
+from ...utils import registry
 
 
 class SolveResult(typing.NamedTuple):
@@ -12,9 +15,9 @@ class SolveResult(typing.NamedTuple):
     time: float
 
 
-class Runtime(abc.ABC):
-    def __init__(self, stencil_backend):
-        self.stencil_backend = stencil_backend
+@registry.subclass_registry
+class Runtime(pydantic.BaseModel, abc.ABC):
+    stencil_backend: StencilBackend
 
     def init_state(self, discrete_solution, t=0):
         nx, ny, nz = discrete_solution.local_resolution
@@ -64,3 +67,7 @@ class Runtime(abc.ABC):
     @abc.abstractmethod
     def solve(self, analytical, stepper, global_resolution, tmax, dt) -> SolveResult:
         pass
+
+    class Config:
+        arbitrary_types_allowed = True
+        extra = "allow"

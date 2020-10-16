@@ -5,22 +5,23 @@ import numpy as np
 import pytest
 
 from gt4py_benchmarks.verification import analytical, convergence
-from gt4py_benchmarks.runtime import single_node
-from gt4py_benchmarks.numerics.stencil_backends import gt4py_backend
+from gt4py_benchmarks.runtime.runtimes import SingleNodeRuntime
+from gt4py_benchmarks.numerics.stencil_backends import GT4PyStencilBackend
 
 
-@pytest.fixture(params=[np.float32, np.float64])
+@pytest.fixture(params=["float32", "float64"])
 def dtype(request):
     return request.param
 
 
 @pytest.fixture(
     params=[
-        # functools.partial(gt4py_backend.StencilBackend, gt4py_backend="numpy"),
-        functools.partial(gt4py_backend.StencilBackend, gt4py_backend="gtx86"),
-        functools.partial(gt4py_backend.StencilBackend, gt4py_backend="gtmc"),
+        # functools.partial(GT4PyStencilBackend, gt4py_backend="numpy"),
+        functools.partial(GT4PyStencilBackend, gt4py_backend="gtx86"),
+        functools.partial(GT4PyStencilBackend, gt4py_backend="gtmc"),
+        functools.partial(GT4PyStencilBackend, gt4py_backend="dacex86"),
     ],
-    ids=lambda f: f.func.__module__.split(".")[-1]
+    ids=lambda f: f.func.__name__
     + "("
     + ", ".join(f"{k}={v}" for k, v in f.keywords.items())
     + ")",
@@ -29,15 +30,15 @@ def stencil_backend(dtype, request):
     return request.param(dtype=dtype)
 
 
-@pytest.fixture(params=[single_node.Runtime], ids=lambda rt: rt.__module__.split(".")[-1])
+@pytest.fixture(params=[SingleNodeRuntime], ids=lambda rt: rt.__name__)
 def runtime(stencil_backend, request):
-    return request.param(stencil_backend)
+    return request.param(stencil_backend=stencil_backend)
 
 
 def check_orders(result, dtype, spatial=2, temporal=1):
     measured_s = result.spatial.orders[-1]
     measured_t = result.temporal.orders[-1]
-    if dtype == np.float32:
+    if dtype == "float32":
         atol_s = 0.05
         atol_t = 0.07
         rtol_s = 0.05 if spatial <= 2 else 0.25

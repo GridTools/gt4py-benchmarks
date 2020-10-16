@@ -1,10 +1,9 @@
-import importlib
+import itertools
 
 import click
-import numpy as np
 
 from ..verification import analytical, convergence
-from ..utils.cli import KeyValueArg
+from ..utils.cli import per_runtime_cli
 
 
 def run_convergence_tests(runtime):
@@ -68,16 +67,4 @@ def run_convergence_tests(runtime):
     )
 
 
-@click.command()
-@click.option("--runtime", "-r", default="single_node")
-@click.option("--stencil-backend", "-s", default="gt4py_backend")
-@click.option("--dtype", default="float64")
-@click.option("--stencil-backend-option", "-o", multiple=True, type=KeyValueArg())
-def cli(runtime, stencil_backend, dtype, stencil_backend_option):
-    stencil_backend = importlib.import_module(
-        f"gt4py_benchmarks.numerics.stencil_backends.{stencil_backend}"
-    ).StencilBackend(dtype=np.dtype(dtype), **dict(stencil_backend_option))
-    runtime = importlib.import_module(f"gt4py_benchmarks.runtime.{runtime}").Runtime(
-        stencil_backend
-    )
-    run_convergence_tests(runtime)
+cli = per_runtime_cli(run_convergence_tests, dtype="float64")

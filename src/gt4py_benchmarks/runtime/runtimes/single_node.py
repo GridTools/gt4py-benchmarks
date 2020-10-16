@@ -1,13 +1,11 @@
 import time
 
-from ..constants import HALO
-from . import base, discrete_analytical
+from ...constants import HALO
+from . import base
+from .. import discrete_analytical
 
 
-class Runtime(base.Runtime):
-    def __init__(self, stencil_backend):
-        self.stencil_backend = stencil_backend
-
+class SingleNodeRuntime(base.Runtime):
     def solve(self, analytical, stepper, global_resolution, tmax, dt):
         exact = discrete_analytical.discretize(
             analytical, global_resolution, global_resolution, (0, 0, 0)

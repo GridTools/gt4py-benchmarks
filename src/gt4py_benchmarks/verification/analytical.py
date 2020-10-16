@@ -121,9 +121,9 @@ def repeat(analytical: AnalyticalSolution, repeats: typing.Tuple[int, int, int])
 
     return AnalyticalSolution(
         domain=(
-            analytical.domain * repeats[0],
-            analytical.domain * repeats[1],
-            analytical.domain * repeats[2],
+            analytical.domain[0] * repeats[0],
+            analytical.domain[1] * repeats[1],
+            analytical.domain[2] * repeats[2],
         ),
         data=remap(analytical.data),
         u=remap(analytical.u),
