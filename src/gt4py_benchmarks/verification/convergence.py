@@ -26,3 +26,29 @@ def order_verification(f, n_min, n_max):
     orders[1:] = np.log2(errors[:-1] / errors[1:])
 
     return OrderVerificationResult(ns, errors, orders)
+
+
+class ConvergenceTestResult(typing.NamedTuple):
+    spatial: OrderVerificationResult
+    temporal: OrderVerificationResult
+
+    def __str__(self):
+        return f"Spatial convergence:\n{self.spatial}Temporal convergence:\n{self.temporal}"
+
+
+def default_convergence_test(runtime, analytical, stepper):
+    dtype = runtime.stencil_backend.dtype
+
+    def spatial_error(n):
+        tmax = 2e-2 if dtype == np.float32 else 1e-3
+        return runtime.solve(analytical, stepper, (n, n, n), tmax, tmax / 100).error
+
+    def temporal_error(n):
+        tmax = 1e-1 if dtype == np.float32 else 1e-2
+        return runtime.solve(analytical, stepper, (128, 128, 128), tmax, tmax / n).error
+
+    n = 16 if dtype == np.float32 else 32
+    return ConvergenceTestResult(
+        spatial=order_verification(spatial_error, n // 2, n),
+        temporal=order_verification(temporal_error, 8, 16),
+    )

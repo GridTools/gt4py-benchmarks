@@ -8,59 +8,63 @@ from ..utils.cli import KeyValueArg
 
 
 def run_convergence_tests(runtime):
-    dtype = runtime.stencil_backend.dtype
-    max_resolution = 16 if dtype == np.float32 else 32
-
-    def run_tests(title, exact, stepper):
-        print(f"=== {title} ===")
-        print(f"Spatial convergence:")
-
-        def spatial_error(n):
-            return runtime.solve(
-                exact, stepper, (n, n, n), 1e-2, 1e-3 if dtype == np.float32 else 1e-5
-            ).error
-
-        def spacetime_error(n):
-            return runtime.solve(exact, stepper, (128, 128, 128), 1e-1, 1e-1 / n).error
-
-        print(convergence.order_verification(spatial_error, 8, max_resolution))
-        print(convergence.order_verification(spacetime_error, 8, max_resolution))
-
     diffusion_coeff = 0.05
-    run_tests(
-        "HORIZONTAL DIFFUSION",
-        analytical.horizontal_diffusion(diffusion_coeff),
-        runtime.stencil_backend.hdiff_stepper(diffusion_coeff),
+    print("=== HORIZONTAL DIFFUSION ===")
+    print(
+        convergence.default_convergence_test(
+            runtime,
+            analytical.horizontal_diffusion(diffusion_coeff),
+            runtime.stencil_backend.hdiff_stepper(diffusion_coeff),
+        ),
+        end="",
     )
-    run_tests(
-        "VERTICAL DIFFUSION",
-        analytical.vertical_diffusion(diffusion_coeff),
-        runtime.stencil_backend.vdiff_stepper(diffusion_coeff),
+    print("=== VERTICAL DIFFUSION ===")
+    print(
+        convergence.default_convergence_test(
+            runtime,
+            analytical.vertical_diffusion(diffusion_coeff),
+            runtime.stencil_backend.vdiff_stepper(diffusion_coeff),
+        ),
+        end="",
     )
-    run_tests(
-        "FULL DIFFUSION",
-        analytical.full_diffusion(diffusion_coeff),
-        runtime.stencil_backend.diff_stepper(diffusion_coeff),
+    print("=== FULL DIFFUSION ===")
+    print(
+        convergence.default_convergence_test(
+            runtime,
+            analytical.full_diffusion(diffusion_coeff),
+            runtime.stencil_backend.diff_stepper(diffusion_coeff),
+        ),
+        end="",
     )
-    run_tests(
-        "HORIZONTAL ADVECTION",
-        analytical.horizontal_advection(),
-        runtime.stencil_backend.hadv_stepper(),
+    print("=== HORIZONTAL ADVECTION ===")
+    print(
+        convergence.default_convergence_test(
+            runtime, analytical.horizontal_advection(), runtime.stencil_backend.hadv_stepper()
+        ),
+        end="",
     )
-    run_tests(
-        "VERTICAL ADVECTION",
-        analytical.vertical_advection(),
-        runtime.stencil_backend.vadv_stepper(),
+    print("=== VERTICAL ADVECTION ===")
+    print(
+        convergence.default_convergence_test(
+            runtime, analytical.vertical_advection(), runtime.stencil_backend.vadv_stepper()
+        ),
+        end="",
     )
-    run_tests(
-        "RUNGE-KUTTA ADVECTION",
-        analytical.full_advection(),
-        runtime.stencil_backend.rkadv_stepper(),
+    print("=== RUNGE-KUTTA ADVECTION ===")
+    print(
+        convergence.default_convergence_test(
+            runtime, analytical.full_advection(), runtime.stencil_backend.rkadv_stepper()
+        ),
+        end="",
     )
-    run_tests(
-        "ADVECTION-DIFFUSION",
-        analytical.advection_diffusion(diffusion_coeff),
-        runtime.stencil_backend.advdiff_stepper(diffusion_coeff),
+    print("=== ADVECTION-DIFFUSION ===")
+    print(
+        convergence.default_convergence_test(
+            runtime,
+            analytical.advection_diffusion(diffusion_coeff),
+            runtime.stencil_backend.advdiff_stepper(diffusion_coeff),
+        ),
+        end="",
     )
 
 
