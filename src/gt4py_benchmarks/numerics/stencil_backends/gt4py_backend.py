@@ -67,6 +67,7 @@ class GT4PyStencilBackend(base.StencilBackend):
             backend=self.gt4py_backend,
             default_origin=(HALO, HALO, 0),
             mask=(True, True, True),
+            managed_memory=True
         )
 
     def hdiff_stencil(self, resolution, delta, diffusion_coeff):
