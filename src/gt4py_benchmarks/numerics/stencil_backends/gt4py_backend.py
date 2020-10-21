@@ -72,7 +72,7 @@ class GT4PyStencilBackend(base.StencilBackend):
 
     def hdiff_stencil(self, resolution, delta, diffusion_coeff):
         @gtscript.stencil(backend=self.gt4py_backend)
-        def stencil(
+        def hdiff(
             out: self._field,
             inp: self._field,
             dt: self._scalar,
@@ -89,7 +89,7 @@ class GT4PyStencilBackend(base.StencilBackend):
                 )
                 out = inp + coeff * dt * ((flx[1, 0] - flx) / dx + (fly[0, 1] - fly) / dy)
 
-        return lambda out, inp, dt: stencil(
+        return lambda out, inp, dt: hdiff(
             out,
             inp,
             self._scalar(dt),
@@ -103,7 +103,7 @@ class GT4PyStencilBackend(base.StencilBackend):
         @gtscript.stencil(
             backend=self.gt4py_backend, externals=dict(k_offset=int(resolution[2] - 1))
         )
-        def stencil(
+        def vdiff(
             out: self._field,
             inp: self._field,
             dt: self._scalar,
@@ -163,7 +163,7 @@ class GT4PyStencilBackend(base.StencilBackend):
                     fact = fact[0, 0, -1]
                     out = d - fact * d2  # noqa: F841
 
-        return lambda out, inp, dt: stencil(
+        return lambda out, inp, dt: vdiff(
             out,
             inp,
             self._scalar(dt),
@@ -174,7 +174,7 @@ class GT4PyStencilBackend(base.StencilBackend):
 
     def hadv_stencil(self, resolution, delta):
         @gtscript.stencil(backend=self.gt4py_backend)
-        def stencil(
+        def hadv(
             out: self._field,
             inp: self._field,
             u: self._field,
@@ -192,7 +192,7 @@ class GT4PyStencilBackend(base.StencilBackend):
                 )
                 out = inp - dt * (flux_x + flux_y)  # noqa
 
-        return lambda out, inp, u, v, dt: stencil(
+        return lambda out, inp, u, v, dt: hadv(
             out,
             inp,
             u,
@@ -207,7 +207,7 @@ class GT4PyStencilBackend(base.StencilBackend):
         @gtscript.stencil(
             backend=self.gt4py_backend, externals=dict(k_offset=int(resolution[2] - 1))
         )
-        def stencil(
+        def vadv(
             out: self._field, inp: self._field, w: self._field, dt: self._scalar, dz: self._scalar
         ):
             from __externals__ import k_offset
@@ -267,7 +267,7 @@ class GT4PyStencilBackend(base.StencilBackend):
                     fact = fact[0, 0, -1]
                     out = d - fact * d2  # noqa
 
-        return lambda out, inp, w, dt: stencil(
+        return lambda out, inp, w, dt: vadv(
             out, inp, w, self._scalar(dt), self._scalar(delta[2]), domain=resolution
         )
 
@@ -275,7 +275,7 @@ class GT4PyStencilBackend(base.StencilBackend):
         @gtscript.stencil(
             backend=self.gt4py_backend, externals=dict(k_offset=int(resolution[2] - 1))
         )
-        def stencil(
+        def rkadv(
             out: self._field,
             inp: self._field,
             inp0: self._field,
@@ -390,7 +390,7 @@ class GT4PyStencilBackend(base.StencilBackend):
                     vout = d - fact * d2
                     out = inp0 - dt * (flx + fly) + (vout - inp)  # noqa
 
-        return lambda out, inp, inp0, u, v, w, dt: stencil(
+        return lambda out, inp, inp0, u, v, w, dt: rkadv(
             out,
             inp,
             inp0,
