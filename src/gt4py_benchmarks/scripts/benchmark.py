@@ -52,3 +52,7 @@ cli = per_runtime_cli(
     ],
     dtype="float64",
 )
+
+
+if __name__ == "__main__":
+    cli()

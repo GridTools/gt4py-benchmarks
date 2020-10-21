@@ -68,3 +68,7 @@ def run_convergence_tests(runtime):
 
 
 cli = per_runtime_cli(run_convergence_tests, dtype="float64")
+
+
+if __name__ == "__main__":
+    cli()
