@@ -153,10 +153,10 @@ class GT4PyStencilBackend(base.StencilBackend):
 
             with computation(FORWARD):
                 with interval(0, 1):
-                    beta = -coeff / (2 * dz * dz)
-                    gamma = -(1 / dt - 2 * beta)
-                    fact = (d + beta * d[0, 0, k_offset] / gamma) / (
-                        1 + d2 + beta * d2[0, 0, k_offset] / gamma
+                    ac = -coeff / (2 * dz * dz)
+                    b = -(1 / dt - 2 * ac)
+                    fact = (d + ac * d[0, 0, k_offset] / b) / (
+                        1 + d2 + ac * d2[0, 0, k_offset] / b
                     )
                     out = d - fact * d2
                 with interval(1, None):
@@ -218,21 +218,21 @@ class GT4PyStencilBackend(base.StencilBackend):
                     c = 0.25 * w[0, 0, 1] / dz
                     b = 1 / dt - a - c
                     d = 1 / dt * inp - c * (inp[0, 0, 1] - inp) + a * (inp - inp[0, 0, k_offset])
-                    alpha = -a
-                    gamma = -b
+                    a0 = a
+                    b0 = b
                     b = 2 * b
                     c = c / b
                     d = d / b
                     c2 = c / b
-                    d2 = gamma / b
+                    d2 = -b0 / b
                 with interval(1, -1):
                     a = -0.25 * w / dz
                     c = 0.25 * w[0, 0, 1] / dz
                     b = 1 / dt - a - c
                     d = 1 / dt * inp - c * (inp[0, 0, 1] - inp) + a * (inp - inp[0, 0, -1])
-                    # alpha and gamma could be 2D
-                    alpha = alpha[0, 0, -1]
-                    gamma = gamma[0, 0, -1]
+                    # a0 and b0 could be 2D
+                    a0 = a0[0, 0, -1]
+                    b0 = b0[0, 0, -1]
                     c = c / (b - c[0, 0, -1] * a)
                     d = (d - a * d[0, 0, -1]) / (b - c[0, 0, -1] * a)
                     c2 = c / (b - c2[0, 0, -1] * a)
@@ -243,14 +243,14 @@ class GT4PyStencilBackend(base.StencilBackend):
                     c = 0.25 * w[0, 0, -k_offset] / dz
                     b = 1 / dt - a - c
                     d = 1 / dt * inp - c * (inp[0, 0, -k_offset] - inp) + a * (inp - inp[0, 0, -1])
-                    # alpha and gamma could be 2D
-                    alpha = alpha[0, 0, -1]
-                    gamma = gamma[0, 0, -1]
-                    b = b + alpha * alpha / gamma
+                    # a0 and b0 could be 2D
+                    a0 = a0[0, 0, -1]
+                    b0 = b0[0, 0, -1]
+                    b = b - a0 * a0 / b0
                     c = c / (b - c[0, 0, -1] * a)
                     d = (d - a * d[0, 0, -1]) / (b - c[0, 0, -1] * a)
                     c2 = c / (b - c2[0, 0, -1] * a)
-                    d2 = (alpha - a * d2[0, 0, -1]) / (b - c2[0, 0, -1] * a)
+                    d2 = (-a0 - a * d2[0, 0, -1]) / (b - c2[0, 0, -1] * a)
 
             with computation(BACKWARD):
                 with interval(0, -1):
@@ -259,8 +259,11 @@ class GT4PyStencilBackend(base.StencilBackend):
 
             with computation(FORWARD):
                 with interval(0, 1):
-                    fact = (d - alpha * d[0, 0, k_offset] / gamma) / (
-                        1 + d2 - alpha * d2[0, 0, k_offset] / gamma
+                    a = -0.25 * w / dz
+                    c = 0.25 * w[0, 0, 1] / dz
+                    b = 1 / dt - a - c
+                    fact = (d - a * d[0, 0, k_offset] / b) / (
+                        1 + d2 - a * d2[0, 0, k_offset] / b
                     )
                     out = d - fact * d2
                 with interval(1, None):
@@ -295,21 +298,21 @@ class GT4PyStencilBackend(base.StencilBackend):
                     c = 0.25 * w[0, 0, 1] / dz
                     b = 1 / dt - a - c
                     d = 1 / dt * inp - c * (inp[0, 0, 1] - inp) + a * (inp - inp[0, 0, k_offset])
-                    alpha = -a
-                    gamma = -b
+                    a0 = a
+                    b0 = b
                     b = 2 * b
                     c = c / b
                     d = d / b
                     c2 = c / b
-                    d2 = gamma / b
+                    d2 = -b0 / b
                 with interval(1, -1):
                     a = -0.25 * w / dz
                     c = 0.25 * w[0, 0, 1] / dz
                     b = 1 / dt - a - c
                     d = 1 / dt * inp - c * (inp[0, 0, 1] - inp) + a * (inp - inp[0, 0, -1])
-                    # alpha and gamma could be 2D
-                    alpha = alpha[0, 0, -1]
-                    gamma = gamma[0, 0, -1]
+                    # a0 and b0 could be 2D
+                    a0 = a0[0, 0, -1]
+                    b0 = b0[0, 0, -1]
                     c = c / (b - c[0, 0, -1] * a)
                     d = (d - a * d[0, 0, -1]) / (b - c[0, 0, -1] * a)
                     c2 = c / (b - c2[0, 0, -1] * a)
@@ -320,14 +323,14 @@ class GT4PyStencilBackend(base.StencilBackend):
                     c = 0.25 * w[0, 0, -k_offset] / dz
                     b = 1 / dt - a - c
                     d = 1 / dt * inp - c * (inp[0, 0, -k_offset] - inp) + a * (inp - inp[0, 0, -1])
-                    # alpha and gamma could be 2D
-                    alpha = alpha[0, 0, -1]
-                    gamma = gamma[0, 0, -1]
-                    b = b + alpha * alpha / gamma
+                    # a0 and b0 could be 2D
+                    a0 = a0[0, 0, -1]
+                    b0 = b0[0, 0, -1]
+                    b = b - a0 * a0 / b0
                     c = c / (b - c[0, 0, -1] * a)
                     d = (d - a * d[0, 0, -1]) / (b - c[0, 0, -1] * a)
                     c2 = c / (b - c2[0, 0, -1] * a)
-                    d2 = (alpha - a * d2[0, 0, -1]) / (b - c2[0, 0, -1] * a)
+                    d2 = (-a0 - a * d2[0, 0, -1]) / (b - c2[0, 0, -1] * a)
 
             with computation(BACKWARD):
                 with interval(0, -1):
@@ -336,8 +339,11 @@ class GT4PyStencilBackend(base.StencilBackend):
 
             with computation(FORWARD):
                 with interval(0, 1):
-                    fact = (d - alpha * d[0, 0, k_offset] / gamma) / (
-                        1 + d2 - alpha * d2[0, 0, k_offset] / gamma
+                    a = -0.25 * w / dz
+                    c = 0.25 * w[0, 0, 1] / dz
+                    b = 1 / dt - a - c
+                    fact = (d - a * d[0, 0, k_offset] / b) / (
+                        1 + d2 - a * d2[0, 0, k_offset] / b
                     )
                     flx = _hadv_upwind_flux(
                         inp[-3, 0],
