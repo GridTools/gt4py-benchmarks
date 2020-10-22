@@ -67,7 +67,7 @@ class GT4PyStencilBackend(base.StencilBackend):
             backend=self.gt4py_backend,
             default_origin=(HALO, HALO, 0),
             mask=(True, True, True),
-            managed_memory=True
+            managed_memory=True,
         )
 
     def hdiff_stencil(self, resolution, delta, diffusion_coeff):
@@ -262,9 +262,7 @@ class GT4PyStencilBackend(base.StencilBackend):
                     a = -0.25 * w / dz
                     c = 0.25 * w[0, 0, 1] / dz
                     b = 1 / dt - a - c
-                    fact = (d - a * d[0, 0, k_offset] / b) / (
-                        1 + d2 - a * d2[0, 0, k_offset] / b
-                    )
+                    fact = (d - a * d[0, 0, k_offset] / b) / (1 + d2 - a * d2[0, 0, k_offset] / b)
                     out = d - fact * d2
                 with interval(1, None):
                     fact = fact[0, 0, -1]
@@ -342,9 +340,7 @@ class GT4PyStencilBackend(base.StencilBackend):
                     a = -0.25 * w / dz
                     c = 0.25 * w[0, 0, 1] / dz
                     b = 1 / dt - a - c
-                    fact = (d - a * d[0, 0, k_offset] / b) / (
-                        1 + d2 - a * d2[0, 0, k_offset] / b
-                    )
+                    fact = (d - a * d[0, 0, k_offset] / b) / (1 + d2 - a * d2[0, 0, k_offset] / b)
                     flx = _hadv_upwind_flux(
                         inp[-3, 0],
                         inp[-2, 0],
