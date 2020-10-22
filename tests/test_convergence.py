@@ -19,7 +19,15 @@ def dtype(request):
         # functools.partial(GT4PyStencilBackend, gt4py_backend="numpy"),
         functools.partial(GT4PyStencilBackend, gt4py_backend="gtx86"),
         functools.partial(GT4PyStencilBackend, gt4py_backend="gtmc"),
+        pytest.param(
+            functools.partial(GT4PyStencilBackend, gt4py_backend="gtcuda"),
+            marks=pytest.mark.requires_gpu,
+        ),
         functools.partial(GT4PyStencilBackend, gt4py_backend="dacex86"),
+        pytest.param(
+            functools.partial(GT4PyStencilBackend, gt4py_backend="dacecuda"),
+            marks=pytest.mark.requires_gpu,
+        ),
     ],
     ids=lambda f: f.func.__name__
     + "("
