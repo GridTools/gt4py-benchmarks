@@ -60,6 +60,44 @@ class GT4PyStencilBackend(base.StencilBackend):
         self._field = Field[np.dtype(self.dtype).type]
         self._scalar = np.dtype(self.dtype).type
 
+    @staticmethod
+    def _dace_adhoc_gpu_backend(resolution, strides):
+        from gt4py.backend.base import register as register_backend
+        from gt4py.backend.dace.gpu_backend import GPUDaceBackend, GPUDaceOptimizer
+
+        backend_name = "dacecuda_" + "x".join(str(r) for r in resolution)
+
+        class Optimizer(GPUDaceOptimizer):
+            def transform_optimize(self, sdfg):
+                symbols = {d: r for d, r in zip("IJK", resolution)}
+                for name in sdfg.arrays:
+                    symbols.update({f"_{name}_{d}_{s}": s for d, s in zip("IJK", strides)})
+                sdfg.specialize(symbols)
+                return super().transform_optimize(sdfg)
+
+        class Backend(GPUDaceBackend):
+            name = backend_name
+            DEFAULT_OPTIMIZER = Optimizer()
+
+        try:
+            register_backend(Backend)
+        except ValueError:
+            pass
+
+        return backend_name
+
+    def _modified_gt4py_backend(self, resolution):
+        # if self.gt4py_backend == "dacecuda":
+            # return self._dace_adhoc_gpu_backend(
+                # resolution,
+                # (
+                    # 1,
+                    # resolution[0] + 2 * HALO,
+                    # (resolution[0] + 2 * HALO) * (resolution[1] + 2 * HALO),
+                # ),
+            # )
+        return self.gt4py_backend
+
     def storage_from_array(self, array):
         return storage.from_array(
             array,
@@ -71,7 +109,7 @@ class GT4PyStencilBackend(base.StencilBackend):
         )
 
     def hdiff_stencil(self, resolution, delta, diffusion_coeff):
-        @gtscript.stencil(backend=self.gt4py_backend)
+        @gtscript.stencil(backend=self._modified_gt4py_backend(resolution))
         def hdiff(
             out: self._field,
             inp: self._field,
@@ -101,7 +139,8 @@ class GT4PyStencilBackend(base.StencilBackend):
 
     def vdiff_stencil(self, resolution, delta, diffusion_coeff):
         @gtscript.stencil(
-            backend=self.gt4py_backend, externals=dict(k_offset=int(resolution[2] - 1))
+            backend=self._modified_gt4py_backend(resolution),
+            externals=dict(k_offset=int(resolution[2] - 1)),
         )
         def vdiff(
             out: self._field,
@@ -114,54 +153,59 @@ class GT4PyStencilBackend(base.StencilBackend):
 
             with computation(FORWARD):
                 with interval(0, 1):
-                    ac = -coeff / (2 * dz * dz)
-                    b = 1 / dt - 2 * ac
-                    d = 1 / dt * inp + 0.5 * coeff * (
-                        inp[0, 0, k_offset] - 2 * inp + inp[0, 0, 1]
-                    ) / (dz * dz)
-                    b = 2 * b
-                    c = ac / b
-                    d = d / b
-                    c2 = c / b
-                    d2 = -0.5
-                with interval(1, -1):
-                    ac = -coeff / (2 * dz * dz)
-                    b = 1 / dt - 2 * ac
-                    d = 1 / dt * inp + 0.5 * coeff * (inp[0, 0, -1] - 2 * inp + inp[0, 0, 1]) / (
+                    a = -coeff / (2 * dz * dz)
+                    b = 1 / dt + coeff / (dz * dz)
+                    d1 = 1 / dt * inp + 0.5 * coeff * (inp[0, 0, k_offset] - 2 * inp + inp[0, 0, 1]) / (
                         dz * dz
                     )
-                    c = ac / (b - c[0, 0, -1] * ac)
-                    d = (d - ac * d[0, 0, -1]) / (b - c[0, 0, -1] * ac)
-                    c2 = c / (b - c2[0, 0, -1] * ac)
-                    d2 = (-ac * d2[0, 0, -1]) / (b - c2[0, 0, -1] * ac)
-                with interval(-1, None):
-                    ac = -coeff / (2 * dz * dz)
-                    b = 1 / dt - 2 * ac
-                    d = 1 / dt * inp + 0.5 * coeff * (
-                        inp[0, 0, -1] - 2 * inp + inp[0, 0, -k_offset]
-                    ) / (dz * dz)
-                    b = b + ac * ac / b
-                    c = ac / (b - c[0, 0, -1] * ac)
-                    d = (d - ac * d[0, 0, -1]) / (b - c[0, 0, -1] * ac)
-                    c2 = c / (b - c2[0, 0, -1] * ac)
-                    d2 = (ac - ac * d2[0, 0, -1]) / (b - c2[0, 0, -1] * ac)
+                    d2 = -a
+                with interval(1, -2):
+                    a = -coeff / (2 * dz * dz)
+                    b = 1 / dt + coeff / (dz * dz)
+                    c = a
+                    d1 = 1 / dt * inp + 0.5 * coeff * (inp[0, 0, -1] - 2 * inp + inp[0, 0, 1]) / (dz * dz)
+                    d2 = 0
+
+                    f = a / b[0, 0, -1]
+                    b -= f * c
+                    d1 -= f * d1[0, 0, -1]
+                    d2 -= f * d2[0, 0, -1]
+                with interval(-2, -1):
+                    a = -coeff / (2 * dz * dz)
+                    b = 1 / dt + coeff / (dz * dz)
+                    c = a
+                    d1 = 1 / dt * inp + 0.5 * coeff * (inp[0, 0, -1] - 2 * inp + inp[0, 0, 1]) / (dz * dz)
+                    d2 = -c
+
+                    f = a / b[0, 0, -1]
+                    b -= f * c
+                    d1 -= f * d1[0, 0, -1]
+                    d2 -= f * d2[0, 0, -1]
 
             with computation(BACKWARD):
-                with interval(0, -1):
-                    d = d - c * d[0, 0, 1]
-                    d2 = d2 - c2 * d2[0, 0, 1]
+                with interval(-2, -1):
+                    f = 1 / b
+                    d1 *= f
+                    d2 *= f
+                with interval(0, -2):
+                    c = -coeff / (2 * dz * dz)
+                    f = 1 / b
+                    d1 = (d1 - c * d1[0, 0, 1]) * f
+                    d2 = (d2 - c * d2[0, 0, 1]) * f
 
-            with computation(FORWARD):
-                with interval(0, 1):
-                    ac = -coeff / (2 * dz * dz)
-                    b = -(1 / dt - 2 * ac)
-                    fact = (d + ac * d[0, 0, k_offset] / b) / (
-                        1 + d2 + ac * d2[0, 0, k_offset] / b
-                    )
-                    out = d - fact * d2
-                with interval(1, None):
-                    fact = fact[0, 0, -1]
-                    out = d - fact * d2  # noqa: F841
+            with computation(BACKWARD):
+                with interval(-1, None):
+                    # a = -coeff / (2 * dz * dz)
+                    # b = 1 / dt + coeff / (dz * dz)
+                    # c = a
+                    # d1 = 1 / dt * inp + 0.5 * coeff * (inp[0, 0, -1] - 2 * inp + inp[0, 0, -k_offset]) / (dz * dz)
+
+                    # out_top = ((d1 - c * d1[0, 0, -k_offset] - a * d1[0, 0, -1]) / (b + c * d2[0, 0, -k_offset] + a * d2[0, 0, -1]))
+                    out_top = 1
+                    #out = out_top
+                with interval(0, -1):
+                    out_top = 1
+                    #out = d1 + d2 * out_top
 
         return lambda out, inp, dt: vdiff(
             out,
@@ -173,7 +217,7 @@ class GT4PyStencilBackend(base.StencilBackend):
         )
 
     def hadv_stencil(self, resolution, delta):
-        @gtscript.stencil(backend=self.gt4py_backend)
+        @gtscript.stencil(backend=self._modified_gt4py_backend(resolution))
         def hadv(
             out: self._field,
             inp: self._field,
@@ -205,7 +249,8 @@ class GT4PyStencilBackend(base.StencilBackend):
 
     def vadv_stencil(self, resolution, delta):
         @gtscript.stencil(
-            backend=self.gt4py_backend, externals=dict(k_offset=int(resolution[2] - 1))
+            backend=self._modified_gt4py_backend(resolution),
+            externals=dict(k_offset=int(resolution[2] - 1)),
         )
         def vadv(
             out: self._field, inp: self._field, w: self._field, dt: self._scalar, dz: self._scalar
@@ -274,7 +319,8 @@ class GT4PyStencilBackend(base.StencilBackend):
 
     def rkadv_stencil(self, resolution, delta):
         @gtscript.stencil(
-            backend=self.gt4py_backend, externals=dict(k_offset=int(resolution[2] - 1))
+            backend=self._modified_gt4py_backend(resolution),
+            externals=dict(k_offset=int(resolution[2] - 1)),
         )
         def rkadv(
             out: self._field,
