@@ -50,7 +50,7 @@ cli = per_runtime_cli(
         click.option("--domain-size", type=int, nargs=3, required=True),
         click.option("--runs", default=101),
     ],
-    dtype="float64",
+    dtype="float32",
 )
 
 
