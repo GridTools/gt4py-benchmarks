@@ -2,6 +2,8 @@ import typing
 
 import numpy as np
 
+from . import analytical
+
 
 class OrderVerificationResult(typing.NamedTuple):
     ns: np.ndarray
@@ -29,26 +31,142 @@ def order_verification(f, n_min, n_max):
 
 
 class ConvergenceTestResult(typing.NamedTuple):
+    name: str
     spatial: OrderVerificationResult
     temporal: OrderVerificationResult
 
     def __str__(self):
-        return f"Spatial convergence:\n{self.spatial}Temporal convergence:\n{self.temporal}"
+        return (
+            f"=== {self.name.upper()} ===\n"
+            f"Spatial convergence:\n{self.spatial}"
+            f"Temporal convergence:\n{self.temporal}"
+        )
 
 
-def default_convergence_test(runtime, analytical, stepper):
+def convergence_test(
+    name,
+    runtime,
+    analytical,
+    stepper,
+    tmax_spatial,
+    n_spatial,
+    tmax_temporal,
+    n_temporal,
+    full_range=False,
+):
     dtype = np.dtype(runtime.stencil_backend.dtype)
 
     def spatial_error(n):
-        tmax = 2e-2 if dtype == np.float32 else 1e-3
-        return runtime.solve(analytical, stepper, (n, n, n), tmax, tmax / 100).error
+        return runtime.solve(
+            analytical, stepper, (n, n, n), tmax_spatial, tmax_spatial / 100
+        ).error
 
     def temporal_error(n):
-        tmax = 1e-1 if dtype == np.float32 else 1e-2
-        return runtime.solve(analytical, stepper, (128, 128, 128), tmax, tmax / n).error
+        return runtime.solve(
+            analytical, stepper, (32, 32, 1024), tmax_temporal, tmax_temporal / n
+        ).error
 
-    n = 16 if dtype == np.float32 else 32
-    return ConvergenceTestResult(
-        spatial=order_verification(spatial_error, n // 2, n),
-        temporal=order_verification(temporal_error, 8, 16),
+    if full_range:
+        nmin_spatial = nmin_temporal = 2
+        nmax_spatial = nmax_temporal = 128
+    else:
+        nmin_spatial = n_spatial // 2
+        nmax_spatial = n_spatial
+        nmin_temporal = n_temporal // 2
+        nmax_temporal = n_temporal
+
+    def run():
+        return ConvergenceTestResult(
+            name=name,
+            spatial=order_verification(spatial_error, nmin_spatial, nmax_spatial),
+            temporal=order_verification(temporal_error, nmin_temporal, nmax_temporal),
+        )
+
+    return run
+
+
+class DefaultConvergenceTests(typing.NamedTuple):
+    hdiff: typing.Callable[[], ConvergenceTestResult]
+    vdiff: typing.Callable[[], ConvergenceTestResult]
+    diff: typing.Callable[[], ConvergenceTestResult]
+    hadv: typing.Callable[[], ConvergenceTestResult]
+    vadv: typing.Callable[[], ConvergenceTestResult]
+    rkadv: typing.Callable[[], ConvergenceTestResult]
+    advdiff: typing.Callable[[], ConvergenceTestResult]
+
+
+def default_convergence_tests(runtime):
+    diffusion_coeff = 0.05
+    is_float = runtime.stencil_backend.dtype == "float32"
+    return DefaultConvergenceTests(
+        hdiff=convergence_test(
+            "horizontal diffusion",
+            runtime,
+            analytical.horizontal_diffusion(diffusion_coeff),
+            runtime.stencil_backend.hdiff_stepper(diffusion_coeff),
+            1e-1 if is_float else 1e-3,
+            16 if is_float else 32,
+            5e-1,
+            16,
+        ),
+        vdiff=convergence_test(
+            "vertical diffusion",
+            runtime,
+            analytical.vertical_diffusion(diffusion_coeff),
+            runtime.stencil_backend.vdiff_stepper(diffusion_coeff),
+            5,
+            64,
+            50,
+            8 if is_float else 16,
+        ),
+        diff=convergence_test(
+            "full diffusion",
+            runtime,
+            analytical.full_diffusion(diffusion_coeff),
+            runtime.stencil_backend.diff_stepper(diffusion_coeff),
+            1e-1 if is_float else 1e-3,
+            32,
+            5e-1,
+            16,
+        ),
+        hadv=convergence_test(
+            "horizontal advection",
+            runtime,
+            analytical.horizontal_advection(),
+            runtime.stencil_backend.hadv_stepper(),
+            1e-1 if is_float else 1e-4,
+            32 if is_float else 64,
+            1e-1,
+            16,
+        ),
+        vadv=convergence_test(
+            "vertical advection",
+            runtime,
+            analytical.vertical_advection(),
+            runtime.stencil_backend.vadv_stepper(),
+            1e-1,
+            128,
+            10,
+            32,
+        ),
+        rkadv=convergence_test(
+            "runge-kutta advection",
+            runtime,
+            analytical.full_advection(),
+            runtime.stencil_backend.rkadv_stepper(),
+            1e-2,
+            64,
+            1,
+            8,
+        ),
+        advdiff=convergence_test(
+            "advection-diffusion",
+            runtime,
+            analytical.advection_diffusion(diffusion_coeff),
+            runtime.stencil_backend.advdiff_stepper(diffusion_coeff),
+            1e-1 if is_float else 1e-3,
+            64,
+            1,
+            16 if is_float else 64,
+        ),
     )

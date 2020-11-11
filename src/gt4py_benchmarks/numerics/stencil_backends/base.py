@@ -34,10 +34,6 @@ class StencilBackend(pydantic.BaseModel, abc.ABC):
     def vadv_stencil(self, resolution, delta):
         pass
 
-    @abc.abstractmethod
-    def rkadv_stencil(self, resolution, delta):
-        pass
-
     def hdiff_stepper(self, diffusion_coeff):
         def stepper(state, exchange):
             hdiff = self.hdiff_stencil(state.resolution, state.delta, diffusion_coeff)
@@ -83,7 +79,7 @@ class StencilBackend(pydantic.BaseModel, abc.ABC):
 
             def step(state, dt):
                 exchange(state.data[0])
-                hadv(state.data[1], state.data[0], state.u, state.v, dt)
+                hadv(state.data[1], state.data[0], state.data[0], state.u, state.v, dt)
                 state.data[0], state.data[1] = state.data[1], state.data[0]
 
             return step
@@ -96,7 +92,7 @@ class StencilBackend(pydantic.BaseModel, abc.ABC):
 
             def step(state, dt):
                 exchange(state.data[0])
-                vadv(state.data[1], state.data[0], state.w, dt)
+                vadv(state.data[1], state.data[0], state.data[0], state.w, dt)
                 state.data[0], state.data[1] = state.data[1], state.data[0]
 
             return step
@@ -105,19 +101,19 @@ class StencilBackend(pydantic.BaseModel, abc.ABC):
 
     def rkadv_stepper(self):
         def stepper(state, exchange):
-            rkadv = self.rkadv_stencil(state.resolution, state.delta)
+            hadv = self.hadv_stencil(state.resolution, state.delta)
+            vadv = self.vadv_stencil(state.resolution, state.delta)
 
             def step(state, dt):
                 exchange(state.data[0])
-                rkadv(
-                    state.data[1], state.data[0], state.data[0], state.u, state.v, state.w, dt / 3
-                )
+                hadv(state.data[1], state.data[0], state.data[0], state.u, state.v, dt / 3)
+                vadv(state.data[1], state.data[0], state.data[1], state.w, dt / 3)
                 exchange(state.data[1])
-                rkadv(
-                    state.data[2], state.data[1], state.data[0], state.u, state.v, state.w, dt / 2
-                )
+                hadv(state.data[2], state.data[1], state.data[0], state.u, state.v, dt / 2)
+                vadv(state.data[2], state.data[1], state.data[2], state.w, dt / 2)
                 exchange(state.data[2])
-                rkadv(state.data[0], state.data[2], state.data[0], state.u, state.v, state.w, dt)
+                hadv(state.data[1], state.data[2], state.data[0], state.u, state.v, dt)
+                vadv(state.data[0], state.data[2], state.data[1], state.w, dt)
 
             return step
 
@@ -125,28 +121,14 @@ class StencilBackend(pydantic.BaseModel, abc.ABC):
 
     def advdiff_stepper(self, diffusion_coeff):
         def stepper(state, exchange):
-            hdiff = self.hdiff_stencil(state.resolution, state.delta, diffusion_coeff)
-            vdiff = self.vdiff_stencil(state.resolution, state.delta, diffusion_coeff)
-            rkadv = self.rkadv_stencil(state.resolution, state.delta)
+            hdiff = self.hdiff_stepper(diffusion_coeff)(state, exchange)
+            vdiff = self.vdiff_stepper(diffusion_coeff)(state, exchange)
+            rkadv = self.rkadv_stepper()(state, exchange)
 
             def step(state, dt):
-                vdiff(state.data[1], state.data[0], dt)
-                state.data[0], state.data[1] = state.data[1], state.data[0]
-
-                exchange(state.data[0])
-                rkadv(
-                    state.data[1], state.data[0], state.data[0], state.u, state.v, state.w, dt / 3
-                )
-                exchange(state.data[1])
-                rkadv(
-                    state.data[2], state.data[1], state.data[0], state.u, state.v, state.w, dt / 2
-                )
-                exchange(state.data[2])
-                rkadv(state.data[0], state.data[2], state.data[0], state.u, state.v, state.w, dt)
-
-                exchange(state.data[0])
-                hdiff(state.data[1], state.data[0], dt)
-                state.data[0], state.data[1] = state.data[1], state.data[0]
+                hdiff(state, dt)
+                rkadv(state, dt)
+                vdiff(state, dt)
 
             return step
 

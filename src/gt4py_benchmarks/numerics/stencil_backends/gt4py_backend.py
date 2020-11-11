@@ -155,15 +155,17 @@ class GT4PyStencilBackend(base.StencilBackend):
                 with interval(0, 1):
                     a = -coeff / (2 * dz * dz)
                     b = 1 / dt + coeff / (dz * dz)
-                    d1 = 1 / dt * inp + 0.5 * coeff * (inp[0, 0, k_offset] - 2 * inp + inp[0, 0, 1]) / (
-                        dz * dz
-                    )
+                    d1 = 1 / dt * inp + 0.5 * coeff * (
+                        inp[0, 0, k_offset] - 2 * inp + inp[0, 0, 1]
+                    ) / (dz * dz)
                     d2 = -a
                 with interval(1, -2):
                     a = -coeff / (2 * dz * dz)
                     b = 1 / dt + coeff / (dz * dz)
                     c = a
-                    d1 = 1 / dt * inp + 0.5 * coeff * (inp[0, 0, -1] - 2 * inp + inp[0, 0, 1]) / (dz * dz)
+                    d1 = 1 / dt * inp + 0.5 * coeff * (inp[0, 0, -1] - 2 * inp + inp[0, 0, 1]) / (
+                        dz * dz
+                    )
                     d2 = 0
 
                     f = a / b[0, 0, -1]
@@ -174,7 +176,9 @@ class GT4PyStencilBackend(base.StencilBackend):
                     a = -coeff / (2 * dz * dz)
                     b = 1 / dt + coeff / (dz * dz)
                     c = a
-                    d1 = 1 / dt * inp + 0.5 * coeff * (inp[0, 0, -1] - 2 * inp + inp[0, 0, 1]) / (dz * dz)
+                    d1 = 1 / dt * inp + 0.5 * coeff * (inp[0, 0, -1] - 2 * inp + inp[0, 0, 1]) / (
+                        dz * dz
+                    )
                     d2 = -c
 
                     f = a / b[0, 0, -1]
@@ -195,17 +199,20 @@ class GT4PyStencilBackend(base.StencilBackend):
 
             with computation(BACKWARD):
                 with interval(-1, None):
-                    # a = -coeff / (2 * dz * dz)
-                    # b = 1 / dt + coeff / (dz * dz)
-                    # c = a
-                    # d1 = 1 / dt * inp + 0.5 * coeff * (inp[0, 0, -1] - 2 * inp + inp[0, 0, -k_offset]) / (dz * dz)
+                    a = -coeff / (2 * dz * dz)
+                    b = 1 / dt + coeff / (dz * dz)
+                    c = a
+                    d1 = 1 / dt * inp + 0.5 * coeff * (
+                        inp[0, 0, -1] - 2 * inp + inp[0, 0, -k_offset]
+                    ) / (dz * dz)
 
-                    # out_top = ((d1 - c * d1[0, 0, -k_offset] - a * d1[0, 0, -1]) / (b + c * d2[0, 0, -k_offset] + a * d2[0, 0, -1]))
-                    out_top = 1
-                    #out = out_top
+                    out_top = (d1 - c * d1[0, 0, -k_offset] - a * d1[0, 0, -1]) / (
+                        b + c * d2[0, 0, -k_offset] + a * d2[0, 0, -1]
+                    )
+                    out = out_top
                 with interval(0, -1):
-                    out_top = 1
-                    #out = d1 + d2 * out_top
+                    out_top = out_top[0, 0, 1]
+                    out = d1 + d2 * out_top
 
         return lambda out, inp, dt: vdiff(
             out,
@@ -221,6 +228,7 @@ class GT4PyStencilBackend(base.StencilBackend):
         def hadv(
             out: self._field,
             inp: self._field,
+            inp0: self._field,
             u: self._field,
             v: self._field,
             dt: self._scalar,
@@ -234,11 +242,12 @@ class GT4PyStencilBackend(base.StencilBackend):
                 flux_y = _hadv_upwind_flux(
                     inp[0, -3], inp[0, -2], inp[0, -1], inp, inp[0, 1], inp[0, 2], inp[0, 3], v, dy
                 )
-                out = inp - dt * (flux_x + flux_y)  # noqa
+                out = inp0 - dt * (flux_x + flux_y)  # noqa
 
-        return lambda out, inp, u, v, dt: hadv(
+        return lambda out, inp, inp0, u, v, dt: hadv(
             out,
             inp,
+            inp0,
             u,
             v,
             self._scalar(dt),
@@ -253,201 +262,73 @@ class GT4PyStencilBackend(base.StencilBackend):
             externals=dict(k_offset=int(resolution[2] - 1)),
         )
         def vadv(
-            out: self._field, inp: self._field, w: self._field, dt: self._scalar, dz: self._scalar
-        ):
-            from __externals__ import k_offset
-
-            with computation(FORWARD):
-                with interval(0, 1):
-                    a = -0.25 * w / dz
-                    c = 0.25 * w[0, 0, 1] / dz
-                    b = 1 / dt - a - c
-                    d = 1 / dt * inp - c * (inp[0, 0, 1] - inp) + a * (inp - inp[0, 0, k_offset])
-                    a0 = a
-                    b0 = b
-                    b = 2 * b
-                    c = c / b
-                    d = d / b
-                    c2 = c / b
-                    d2 = -b0 / b
-                with interval(1, -1):
-                    a = -0.25 * w / dz
-                    c = 0.25 * w[0, 0, 1] / dz
-                    b = 1 / dt - a - c
-                    d = 1 / dt * inp - c * (inp[0, 0, 1] - inp) + a * (inp - inp[0, 0, -1])
-                    # a0 and b0 could be 2D
-                    a0 = a0[0, 0, -1]
-                    b0 = b0[0, 0, -1]
-                    c = c / (b - c[0, 0, -1] * a)
-                    d = (d - a * d[0, 0, -1]) / (b - c[0, 0, -1] * a)
-                    c2 = c / (b - c2[0, 0, -1] * a)
-                    d2 = (-a * d2[0, 0, -1]) / (b - c2[0, 0, -1] * a)
-
-                with interval(-1, None):
-                    a = -0.25 * w / dz
-                    c = 0.25 * w[0, 0, -k_offset] / dz
-                    b = 1 / dt - a - c
-                    d = 1 / dt * inp - c * (inp[0, 0, -k_offset] - inp) + a * (inp - inp[0, 0, -1])
-                    # a0 and b0 could be 2D
-                    a0 = a0[0, 0, -1]
-                    b0 = b0[0, 0, -1]
-                    b = b - a0 * a0 / b0
-                    c = c / (b - c[0, 0, -1] * a)
-                    d = (d - a * d[0, 0, -1]) / (b - c[0, 0, -1] * a)
-                    c2 = c / (b - c2[0, 0, -1] * a)
-                    d2 = (-a0 - a * d2[0, 0, -1]) / (b - c2[0, 0, -1] * a)
-
-            with computation(BACKWARD):
-                with interval(0, -1):
-                    d = d - c * d[0, 0, 1]
-                    d2 = d2 - c2 * d2[0, 0, 1]
-
-            with computation(FORWARD):
-                with interval(0, 1):
-                    a = -0.25 * w / dz
-                    c = 0.25 * w[0, 0, 1] / dz
-                    b = 1 / dt - a - c
-                    fact = (d - a * d[0, 0, k_offset] / b) / (1 + d2 - a * d2[0, 0, k_offset] / b)
-                    out = d - fact * d2
-                with interval(1, None):
-                    fact = fact[0, 0, -1]
-                    out = d - fact * d2  # noqa
-
-        return lambda out, inp, w, dt: vadv(
-            out, inp, w, self._scalar(dt), self._scalar(delta[2]), domain=resolution
-        )
-
-    def rkadv_stencil(self, resolution, delta):
-        @gtscript.stencil(
-            backend=self._modified_gt4py_backend(resolution),
-            externals=dict(k_offset=int(resolution[2] - 1)),
-        )
-        def rkadv(
             out: self._field,
             inp: self._field,
             inp0: self._field,
-            u: self._field,
-            v: self._field,
             w: self._field,
             dt: self._scalar,
-            dx: self._scalar,
-            dy: self._scalar,
             dz: self._scalar,
         ):
             from __externals__ import k_offset
 
             with computation(FORWARD):
                 with interval(0, 1):
-                    a = -0.25 * w / dz
-                    c = 0.25 * w[0, 0, 1] / dz
-                    b = 1 / dt - a - c
-                    d = 1 / dt * inp - c * (inp[0, 0, 1] - inp) + a * (inp - inp[0, 0, k_offset])
-                    a0 = a
-                    b0 = b
-                    b = 2 * b
-                    c = c / b
-                    d = d / b
-                    c2 = c / b
-                    d2 = -b0 / b
-                with interval(1, -1):
-                    a = -0.25 * w / dz
-                    c = 0.25 * w[0, 0, 1] / dz
-                    b = 1 / dt - a - c
-                    d = 1 / dt * inp - c * (inp[0, 0, 1] - inp) + a * (inp - inp[0, 0, -1])
-                    # a0 and b0 could be 2D
-                    a0 = a0[0, 0, -1]
-                    b0 = b0[0, 0, -1]
-                    c = c / (b - c[0, 0, -1] * a)
-                    d = (d - a * d[0, 0, -1]) / (b - c[0, 0, -1] * a)
-                    c2 = c / (b - c2[0, 0, -1] * a)
-                    d2 = (-a * d2[0, 0, -1]) / (b - c2[0, 0, -1] * a)
+                    a = -0.25 / dz * w
+                    b = 1 / dt + 0.25 * (w - w[0, 0, 1]) / dz
+                    d1 = 1 / dt * inp - 0.25 / dz * (w * (inp - inp[0, 0, k_offset]) + w[0, 0, 1] * (inp[0, 0, 1] - inp))
+                    d2 = -a
+                with interval(1, -2):
+                    a = -0.25 / dz * w
+                    b = 1 / dt + 0.25 * (w - w[0, 0, 1]) / dz
+                    c_km1 = -a
+                    d1 = 1 / dt * inp - 0.25 / dz * (w * (inp - inp[0, 0, -1]) + w[0, 0, 1] * (inp[0, 0, 1] - inp))
+                    d2 = 0
 
-                with interval(-1, None):
-                    a = -0.25 * w / dz
-                    c = 0.25 * w[0, 0, -k_offset] / dz
-                    b = 1 / dt - a - c
-                    d = 1 / dt * inp - c * (inp[0, 0, -k_offset] - inp) + a * (inp - inp[0, 0, -1])
-                    # a0 and b0 could be 2D
-                    a0 = a0[0, 0, -1]
-                    b0 = b0[0, 0, -1]
-                    b = b - a0 * a0 / b0
-                    c = c / (b - c[0, 0, -1] * a)
-                    d = (d - a * d[0, 0, -1]) / (b - c[0, 0, -1] * a)
-                    c2 = c / (b - c2[0, 0, -1] * a)
-                    d2 = (-a0 - a * d2[0, 0, -1]) / (b - c2[0, 0, -1] * a)
+                    f = a / b[0, 0, -1]
+                    b -= f * c_km1
+                    d1 -= f * d1[0, 0, -1]
+                    d2 -= f * d2[0, 0, -1]
+                with interval(-2, -1):
+                    a = -0.25 / dz * w
+                    b = 1 / dt + 0.25 * (w - w[0, 0, 1]) / dz
+                    c = 0.25 / dz * w[0, 0, 1]
+                    c_km1 = -a
+                    d1 = 1 / dt * inp - 0.25 / dz * (w * (inp - inp[0, 0, -1]) + w[0, 0, 1] * (inp[0, 0, 1] - inp))
+                    d2 = -c
+
+                    f = a / b[0, 0, -1]
+                    b -= f * c_km1
+                    d1 -= f * d1[0, 0, -1]
+                    d2 -= f * d2[0, 0, -1]
 
             with computation(BACKWARD):
+                with interval(-2, -1):
+                    f = 1 / b
+                    d1 *= f
+                    d2 *= f
+                with interval(0, -2):
+                    c = 0.25 / dz * w[0, 0, 1]
+                    f = 1 / b
+                    d1 = (d1 - c * d1[0, 0, 1]) * f
+                    d2 = (d2 - c * d2[0, 0, 1]) * f
+
+            with computation(BACKWARD):
+                with interval(-1, None):
+                    a = -0.25 / dz * w
+                    b = 1 / dt + 0.25 * (w - w[0, 0, 1]) / dz
+                    c = 0.25 / dz * w[0, 0, 1]
+                    d1 = 1 / dt * inp - 0.25 / dz * (
+                        w * (inp - inp[0, 0, -1]) + w[0, 0, 1] * (inp[0, 0, -k_offset] - inp)
+                    )
+
+                    out_top = (d1 - c * d1[0, 0, -k_offset] - a * d1[0, 0, -1]) / (
+                        b + c * d2[0, 0, -k_offset] + a * d2[0, 0, -1]
+                    )
+                    out = inp0 + (out_top - inp)
                 with interval(0, -1):
-                    d = d - c * d[0, 0, 1]
-                    d2 = d2 - c2 * d2[0, 0, 1]
+                    out_top = out_top[0, 0, 1]
+                    out = inp0 + (d1 + d2 * out_top - inp)
 
-            with computation(FORWARD):
-                with interval(0, 1):
-                    a = -0.25 * w / dz
-                    c = 0.25 * w[0, 0, 1] / dz
-                    b = 1 / dt - a - c
-                    fact = (d - a * d[0, 0, k_offset] / b) / (1 + d2 - a * d2[0, 0, k_offset] / b)
-                    flx = _hadv_upwind_flux(
-                        inp[-3, 0],
-                        inp[-2, 0],
-                        inp[-1, 0],
-                        inp,
-                        inp[1, 0],
-                        inp[2, 0],
-                        inp[3, 0],
-                        u,
-                        dx,
-                    )
-                    fly = _hadv_upwind_flux(
-                        inp[0, -3],
-                        inp[0, -2],
-                        inp[0, -1],
-                        inp,
-                        inp[0, 1],
-                        inp[0, 2],
-                        inp[0, 3],
-                        v,
-                        dy,
-                    )
-                    vout = d - fact * d2
-                    out = inp0 - dt * (flx + fly) + (vout - inp)
-                with interval(1, None):
-                    fact = fact[0, 0, -1]
-                    flx = _hadv_upwind_flux(
-                        inp[-3, 0],
-                        inp[-2, 0],
-                        inp[-1, 0],
-                        inp,
-                        inp[1, 0],
-                        inp[2, 0],
-                        inp[3, 0],
-                        u,
-                        dx,
-                    )
-                    fly = _hadv_upwind_flux(
-                        inp[0, -3],
-                        inp[0, -2],
-                        inp[0, -1],
-                        inp,
-                        inp[0, 1],
-                        inp[0, 2],
-                        inp[0, 3],
-                        v,
-                        dy,
-                    )
-                    vout = d - fact * d2
-                    out = inp0 - dt * (flx + fly) + (vout - inp)  # noqa
-
-        return lambda out, inp, inp0, u, v, w, dt: rkadv(
-            out,
-            inp,
-            inp0,
-            u,
-            v,
-            w,
-            self._scalar(dt),
-            self._scalar(delta[0]),
-            self._scalar(delta[1]),
-            self._scalar(delta[2]),
-            domain=resolution,
+        return lambda out, inp, inp0, w, dt: vadv(
+            out, inp, inp0, w, self._scalar(dt), self._scalar(delta[2]), domain=resolution
         )
