@@ -52,8 +52,8 @@ def check_orders(result, dtype, spatial=2, temporal=1):
     measured_s = result.spatial.orders[-1]
     measured_t = result.temporal.orders[-1]
     if dtype == "float32":
-        atol_s = atol_t = 0.02
-        rtol_s = rtol_t = 0.03
+        atol_s = atol_t = 0.03
+        rtol_s = rtol_t = 0.04
     else:
         atol_s = atol_t = 0
         rtol_s = 0.01
