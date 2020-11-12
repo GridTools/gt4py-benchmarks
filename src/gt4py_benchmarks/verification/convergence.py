@@ -95,7 +95,7 @@ class DefaultConvergenceTests(typing.NamedTuple):
     advdiff: typing.Callable[[], ConvergenceTestResult]
 
 
-def default_convergence_tests(runtime):
+def default_convergence_tests(runtime, full_range=False):
     diffusion_coeff = 0.05
     is_float = runtime.stencil_backend.dtype == "float32"
     return DefaultConvergenceTests(
@@ -108,6 +108,7 @@ def default_convergence_tests(runtime):
             16 if is_float else 32,
             5e-1,
             16,
+            full_range,
         ),
         vdiff=convergence_test(
             "vertical diffusion",
@@ -118,6 +119,7 @@ def default_convergence_tests(runtime):
             64,
             50,
             8 if is_float else 16,
+            full_range,
         ),
         diff=convergence_test(
             "full diffusion",
@@ -128,6 +130,7 @@ def default_convergence_tests(runtime):
             32,
             5e-1,
             16,
+            full_range,
         ),
         hadv=convergence_test(
             "horizontal advection",
@@ -138,6 +141,7 @@ def default_convergence_tests(runtime):
             32 if is_float else 64,
             1e-1,
             16,
+            full_range,
         ),
         vadv=convergence_test(
             "vertical advection",
@@ -148,6 +152,7 @@ def default_convergence_tests(runtime):
             128,
             10,
             32,
+            full_range,
         ),
         rkadv=convergence_test(
             "runge-kutta advection",
@@ -158,6 +163,7 @@ def default_convergence_tests(runtime):
             64,
             1,
             8,
+            full_range,
         ),
         advdiff=convergence_test(
             "advection-diffusion",
@@ -168,5 +174,6 @@ def default_convergence_tests(runtime):
             64,
             1,
             16 if is_float else 64,
+            full_range,
         ),
     )
