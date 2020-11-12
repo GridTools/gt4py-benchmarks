@@ -197,7 +197,8 @@ class GT4PyStencilBackend(base.StencilBackend):
                     d1 = (d1 - c * d1[0, 0, 1]) * f
                     d2 = (d2 - c * d2[0, 0, 1]) * f
 
-            with computation(BACKWARD):
+            # workaround for https://github.com/GridTools/gt4py/issues/246
+            with computation(FORWARD):
                 with interval(-1, None):
                     a = -coeff / (2 * dz * dz)
                     b = 1 / dt + coeff / (dz * dz)
@@ -205,6 +206,15 @@ class GT4PyStencilBackend(base.StencilBackend):
                     d1 = 1 / dt * inp + 0.5 * coeff * (
                         inp[0, 0, -1] - 2 * inp + inp[0, 0, -k_offset]
                     ) / (dz * dz)
+
+            with computation(BACKWARD):
+                with interval(-1, None):
+                    # a = -coeff / (2 * dz * dz)
+                    # b = 1 / dt + coeff / (dz * dz)
+                    # c = a
+                    # d1 = 1 / dt * inp + 0.5 * coeff * (
+                    # inp[0, 0, -1] - 2 * inp + inp[0, 0, -k_offset]
+                    # ) / (dz * dz)
 
                     out_top = (d1 - c * d1[0, 0, -k_offset] - a * d1[0, 0, -1]) / (
                         b + c * d2[0, 0, -k_offset] + a * d2[0, 0, -1]
@@ -275,13 +285,17 @@ class GT4PyStencilBackend(base.StencilBackend):
                 with interval(0, 1):
                     a = -0.25 / dz * w
                     b = 1 / dt + 0.25 * (w - w[0, 0, 1]) / dz
-                    d1 = 1 / dt * inp - 0.25 / dz * (w * (inp - inp[0, 0, k_offset]) + w[0, 0, 1] * (inp[0, 0, 1] - inp))
+                    d1 = 1 / dt * inp - 0.25 / dz * (
+                        w * (inp - inp[0, 0, k_offset]) + w[0, 0, 1] * (inp[0, 0, 1] - inp)
+                    )
                     d2 = -a
                 with interval(1, -2):
                     a = -0.25 / dz * w
                     b = 1 / dt + 0.25 * (w - w[0, 0, 1]) / dz
                     c_km1 = -a
-                    d1 = 1 / dt * inp - 0.25 / dz * (w * (inp - inp[0, 0, -1]) + w[0, 0, 1] * (inp[0, 0, 1] - inp))
+                    d1 = 1 / dt * inp - 0.25 / dz * (
+                        w * (inp - inp[0, 0, -1]) + w[0, 0, 1] * (inp[0, 0, 1] - inp)
+                    )
                     d2 = 0
 
                     f = a / b[0, 0, -1]
@@ -293,7 +307,9 @@ class GT4PyStencilBackend(base.StencilBackend):
                     b = 1 / dt + 0.25 * (w - w[0, 0, 1]) / dz
                     c = 0.25 / dz * w[0, 0, 1]
                     c_km1 = -a
-                    d1 = 1 / dt * inp - 0.25 / dz * (w * (inp - inp[0, 0, -1]) + w[0, 0, 1] * (inp[0, 0, 1] - inp))
+                    d1 = 1 / dt * inp - 0.25 / dz * (
+                        w * (inp - inp[0, 0, -1]) + w[0, 0, 1] * (inp[0, 0, 1] - inp)
+                    )
                     d2 = -c
 
                     f = a / b[0, 0, -1]
@@ -312,7 +328,8 @@ class GT4PyStencilBackend(base.StencilBackend):
                     d1 = (d1 - c * d1[0, 0, 1]) * f
                     d2 = (d2 - c * d2[0, 0, 1]) * f
 
-            with computation(BACKWARD):
+            # workaround for https://github.com/GridTools/gt4py/issues/246
+            with computation(FORWARD):
                 with interval(-1, None):
                     a = -0.25 / dz * w
                     b = 1 / dt + 0.25 * (w - w[0, 0, 1]) / dz
@@ -320,6 +337,15 @@ class GT4PyStencilBackend(base.StencilBackend):
                     d1 = 1 / dt * inp - 0.25 / dz * (
                         w * (inp - inp[0, 0, -1]) + w[0, 0, 1] * (inp[0, 0, -k_offset] - inp)
                     )
+
+            with computation(BACKWARD):
+                with interval(-1, None):
+                    # a = -0.25 / dz * w
+                    # b = 1 / dt + 0.25 * (w - w[0, 0, 1]) / dz
+                    # c = 0.25 / dz * w[0, 0, 1]
+                    # d1 = 1 / dt * inp - 0.25 / dz * (
+                    # w * (inp - inp[0, 0, -1]) + w[0, 0, 1] * (inp[0, 0, -k_offset] - inp)
+                    # )
 
                     out_top = (d1 - c * d1[0, 0, -k_offset] - a * d1[0, 0, -1]) / (
                         b + c * d2[0, 0, -k_offset] + a * d2[0, 0, -1]
