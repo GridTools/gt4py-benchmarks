@@ -45,39 +45,39 @@ def full_diffusion(diffusion_coeff):
 
 def horizontal_advection():
     def data(x, y, z, t):
-        return np.sin(x - 5 * t) * np.cos(y + 2 * t) * np.cos(z)
+        return np.sin(x - 0.2 * t) * np.cos(y + 0.3 * t) * np.cos(z)
 
     def u(x, y, z, t):
-        return np.full_like(x, 5)
+        return np.full_like(x, 0.2)
 
     def v(x, y, z, t):
-        return np.full_like(x, -2)
+        return np.full_like(x, -0.3)
 
     return AnalyticalSolution(domain=(4 * np.pi, 4 * np.pi, 4 * np.pi), data=data, u=u, v=v)
 
 
 def vertical_advection():
     def data(x, y, z, t):
-        return np.sin(x) * np.cos(y) * np.cos(z - 3 * t)
+        return np.sin(x) * np.cos(y) * np.cos(z - 0.6 * t)
 
     def w(x, y, z, t):
-        return np.full_like(x, 3)
+        return np.full_like(x, 0.6)
 
     return AnalyticalSolution(domain=(4 * np.pi, 4 * np.pi, 4 * np.pi), data=data, w=w)
 
 
 def full_advection():
     def data(x, y, z, t):
-        return np.sin(x - 5 * t) * np.cos(y + 2 * t) * np.cos(z - 3 * t)
+        return np.sin(x - 0.1 * t) * np.cos(y + 0.2 * t) * np.cos(z - 0.3 * t)
 
     def u(x, y, z, t):
-        return np.full_like(x, 5)
+        return np.full_like(x, 0.1)
 
     def v(x, y, z, t):
-        return np.full_like(x, -2)
+        return np.full_like(x, -0.2)
 
     def w(x, y, z, t):
-        return np.full_like(x, 3)
+        return np.full_like(x, 0.3)
 
     return AnalyticalSolution(domain=(4 * np.pi, 4 * np.pi, 4 * np.pi), data=data, u=u, v=v, w=w)
 
@@ -89,13 +89,13 @@ def advection_diffusion(diffusion_coeff):
         return -np.sin(x) * np.sin(a * (y - z)) * np.exp(-2 * diffusion_coeff * t)
 
     def u(x, y, z, t):
-        return -np.sin(x) * np.cos(a * (y - z))
+        return -np.sin(x) * np.cos(a * (y - z)) * 0.1
 
     def v(x, y, z, t):
-        return a * np.cos(x) * np.sin(a * (y - z))
+        return a * np.cos(x) * np.sin(a * (y - z)) * 0.1
 
     def w(x, y, z, t):
-        return -a * np.cos(x) * np.sin(a * (y - z))
+        return -a * np.cos(x) * np.sin(a * (y - z)) * 0.1
 
     return AnalyticalSolution(
         domain=(2 * np.pi, 2 * np.pi * np.sqrt(2), 2 * np.pi * np.sqrt(2)),
