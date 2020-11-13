@@ -1,4 +1,5 @@
-from gt4py import gtscript, storage
+import gt4py
+from gt4py import backend, gtscript, storage
 from gt4py.gtscript import Field, computation, interval, FORWARD, BACKWARD, PARALLEL
 import numpy as np
 import typing_extensions
@@ -60,43 +61,34 @@ class GT4PyStencilBackend(base.StencilBackend):
         self._field = Field[np.dtype(self.dtype).type]
         self._scalar = np.dtype(self.dtype).type
 
-    @staticmethod
-    def _dace_adhoc_gpu_backend(resolution, strides):
-        from gt4py.backend.base import register as register_backend
-        from gt4py.backend.dace.gpu_backend import GPUDaceBackend, GPUDaceOptimizer
+    def _modified_gt4py_backend(self, resolution):
+        backend = gt4py.backend.base.from_name(self.gt4py_backend)
+        new_name = self.gt4py_backend + "_" + "x".join(str(r) for r in resolution)
+        assert backend.storage_info["layout_map"]([True] * 3) == (2, 1, 0)
+        strides = (
+            1,
+            resolution[0] + 2 * HALO,
+            (resolution[0] + 2 * HALO) * (resolution[1] + 2 * HALO),
+        )
 
-        backend_name = "dacecuda_" + "x".join(str(r) for r in resolution)
-
-        class Optimizer(GPUDaceOptimizer):
+        class Optimizer(type(backend.DEFAULT_OPTIMIZER)):
             def transform_optimize(self, sdfg):
                 symbols = {d: r for d, r in zip("IJK", resolution)}
                 for name in sdfg.arrays:
-                    symbols.update({f"_{name}_{d}_{s}": s for d, s in zip("IJK", strides)})
+                    symbols.update({f"_{name}_{d}_stride": s for d, s in zip("IJK", strides)})
                 sdfg.specialize(symbols)
                 return super().transform_optimize(sdfg)
 
-        class Backend(GPUDaceBackend):
-            name = backend_name
+        class Backend(backend):
+            name = new_name
             DEFAULT_OPTIMIZER = Optimizer()
 
         try:
-            register_backend(Backend)
+            gt4py.backend.base.register(Backend)
         except ValueError:
             pass
 
-        return backend_name
-
-    def _modified_gt4py_backend(self, resolution):
-        # if self.gt4py_backend == "dacecuda":
-            # return self._dace_adhoc_gpu_backend(
-                # resolution,
-                # (
-                    # 1,
-                    # resolution[0] + 2 * HALO,
-                    # (resolution[0] + 2 * HALO) * (resolution[1] + 2 * HALO),
-                # ),
-            # )
-        return self.gt4py_backend
+        return new_name
 
     def storage_from_array(self, array):
         return storage.from_array(
