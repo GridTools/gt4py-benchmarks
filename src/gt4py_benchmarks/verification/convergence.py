@@ -140,7 +140,7 @@ def default_convergence_tests(runtime, full_range=False):
             1e-1 if is_float else 1e-4,
             32 if is_float else 64,
             1e-1,
-            64, # TODO: differs from GTBench C++
+            64,  # TODO: differs from GTBench C++
             full_range,
         ),
         vadv=convergence_test(

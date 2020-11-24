@@ -62,7 +62,7 @@ class GT4PyStencilBackend(base.StencilBackend):
         self._scalar = np.dtype(self.dtype).type
 
     def _modified_gt4py_backend(self, resolution):
-        if 'dace' not in self.gt4py_backend:
+        if "dace" not in self.gt4py_backend:
             return self.gt4py_backend
         backend = gt4py.backend.base.from_name(self.gt4py_backend)
         new_name = self.gt4py_backend + "_" + "x".join(str(r) for r in resolution)
