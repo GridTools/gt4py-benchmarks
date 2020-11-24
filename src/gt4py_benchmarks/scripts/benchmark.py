@@ -29,13 +29,13 @@ def run_benchmark(runtime, domain_size, runs):
 
     lower_time, median_time, upper_time = np.percentile([r.time for r in results], [2.5, 50, 97.5])
     conf = [f"(95% confidence: {lower_time}s - {upper_time}s)"] if runs > 100 else []
-    pfmt("Median time:", median_time, "s", *conf)
+    pfmt("Median time:", f"{median_time}s", *conf)
     conf = (
         [f"(95% confidence: {nx * ny / upper_time}s - {nx * ny / lower_time}s)"]
         if runs > 100
         else []
     )
-    pfmt("Columns per second:", nx * ny / median_time, "s", *conf)
+    pfmt("Columns per second:", nx * ny / median_time, *conf)
 
     align = 0
     for line in lines:
