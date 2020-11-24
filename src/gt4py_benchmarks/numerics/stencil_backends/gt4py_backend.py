@@ -326,10 +326,12 @@ class GT4PyStencilBackend(base.StencilBackend):
             with computation(FORWARD):
                 with interval(-1, None):
                     a = -0.25 / dz * w
-                    b = 1 / dt + 0.25 * (w - w[0, 0, 1]) / dz
-                    c = 0.25 / dz * w[0, 0, 1]
+                    # in C++ we use w[0, 0, 1] instead of w[0, 0, -k_offset]
+                    b = 1 / dt + 0.25 * (w - w[0, 0, -k_offset]) / dz
+                    c = 0.25 / dz * w[0, 0, -k_offset]
                     d1 = 1 / dt * inp - 0.25 / dz * (
-                        w * (inp - inp[0, 0, -1]) + w[0, 0, 1] * (inp[0, 0, -k_offset] - inp)
+                        w * (inp - inp[0, 0, -1])
+                        + w[0, 0, -k_offset] * (inp[0, 0, -k_offset] - inp)
                     )
 
             with computation(BACKWARD):
