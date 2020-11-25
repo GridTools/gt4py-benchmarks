@@ -75,9 +75,9 @@ class GT4PyStencilBackend(base.StencilBackend):
 
         class Optimizer(type(backend.DEFAULT_OPTIMIZER)):
             def transform_optimize(self, sdfg):
-                symbols = {d: r for d, r in zip("IJK", resolution)}
+                symbols = {d: np.int32(r) for d, r in zip("IJK", resolution)}
                 for name in sdfg.arrays:
-                    symbols.update({f"_{name}_{d}_stride": s for d, s in zip("IJK", strides)})
+                    symbols.update({f"_{name}_{d}_stride": np.int32(s) for d, s in zip("IJK", strides)})
                 sdfg.specialize(symbols)
                 return super().transform_optimize(sdfg)
 
