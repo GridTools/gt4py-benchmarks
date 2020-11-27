@@ -1,12 +1,14 @@
+import dataclasses
 import typing
 
-import numpy as np
 
-
-class SolverState(typing.NamedTuple):
+@dataclasses.dataclass
+class SolverState:
     resolution: typing.Tuple[int, int, int]
     delta: typing.Tuple[float, float, float]
-    data: typing.List[np.ndarray]
-    u: np.ndarray
-    v: np.ndarray
-    w: np.ndarray
+    u: typing.Any
+    v: typing.Any
+    w: typing.Any
+    data: typing.Any
+    data1: typing.Any
+    data2: typing.Any

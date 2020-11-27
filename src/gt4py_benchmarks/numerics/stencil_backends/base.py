@@ -39,9 +39,9 @@ class StencilBackend(pydantic.BaseModel, abc.ABC):
             hdiff = self.hdiff_stencil(state.resolution, state.delta, diffusion_coeff)
 
             def step(state, dt):
-                exchange(state.data[0])
-                hdiff(state.data[1], state.data[0], dt)
-                state.data[0], state.data[1] = state.data[1], state.data[0]
+                exchange(state.data)
+                hdiff(state.data1, state.data, dt)
+                state.data, state.data1 = state.data1, state.data
 
             return step
 
@@ -52,8 +52,8 @@ class StencilBackend(pydantic.BaseModel, abc.ABC):
             vdiff = self.vdiff_stencil(state.resolution, state.delta, diffusion_coeff)
 
             def step(state, dt):
-                vdiff(state.data[1], state.data[0], dt)
-                state.data[0], state.data[1] = state.data[1], state.data[0]
+                vdiff(state.data1, state.data, dt)
+                state.data, state.data1 = state.data1, state.data
 
             return step
 
@@ -65,9 +65,9 @@ class StencilBackend(pydantic.BaseModel, abc.ABC):
             vdiff = self.vdiff_stencil(state.resolution, state.delta, diffusion_coeff)
 
             def step(state, dt):
-                exchange(state.data[0])
-                hdiff(state.data[1], state.data[0], dt)
-                vdiff(state.data[0], state.data[1], dt)
+                exchange(state.data)
+                hdiff(state.data1, state.data, dt)
+                vdiff(state.data, state.data1, dt)
 
             return step
 
@@ -78,9 +78,9 @@ class StencilBackend(pydantic.BaseModel, abc.ABC):
             hadv = self.hadv_stencil(state.resolution, state.delta)
 
             def step(state, dt):
-                exchange(state.data[0])
-                hadv(state.data[1], state.data[0], state.data[0], state.u, state.v, dt)
-                state.data[0], state.data[1] = state.data[1], state.data[0]
+                exchange(state.data)
+                hadv(state.data1, state.data, state.data, state.u, state.v, dt)
+                state.data, state.data1 = state.data1, state.data
 
             return step
 
@@ -91,9 +91,9 @@ class StencilBackend(pydantic.BaseModel, abc.ABC):
             vadv = self.vadv_stencil(state.resolution, state.delta)
 
             def step(state, dt):
-                exchange(state.data[0])
-                vadv(state.data[1], state.data[0], state.data[0], state.w, dt)
-                state.data[0], state.data[1] = state.data[1], state.data[0]
+                exchange(state.data)
+                vadv(state.data1, state.data, state.data, state.w, dt)
+                state.data, state.data1 = state.data1, state.data
 
             return step
 
@@ -105,15 +105,15 @@ class StencilBackend(pydantic.BaseModel, abc.ABC):
             vadv = self.vadv_stencil(state.resolution, state.delta)
 
             def step(state, dt):
-                exchange(state.data[0])
-                hadv(state.data[1], state.data[0], state.data[0], state.u, state.v, dt / 3)
-                vadv(state.data[1], state.data[0], state.data[1], state.w, dt / 3)
-                exchange(state.data[1])
-                hadv(state.data[2], state.data[1], state.data[0], state.u, state.v, dt / 2)
-                vadv(state.data[2], state.data[1], state.data[2], state.w, dt / 2)
-                exchange(state.data[2])
-                hadv(state.data[1], state.data[2], state.data[0], state.u, state.v, dt)
-                vadv(state.data[0], state.data[2], state.data[1], state.w, dt)
+                exchange(state.data)
+                hadv(state.data1, state.data, state.data, state.u, state.v, dt / 3)
+                vadv(state.data1, state.data, state.data1, state.w, dt / 3)
+                exchange(state.data1)
+                hadv(state.data2, state.data1, state.data, state.u, state.v, dt / 2)
+                vadv(state.data2, state.data1, state.data2, state.w, dt / 2)
+                exchange(state.data2)
+                hadv(state.data1, state.data2, state.data, state.u, state.v, dt)
+                vadv(state.data, state.data2, state.data1, state.w, dt)
 
             return step
 

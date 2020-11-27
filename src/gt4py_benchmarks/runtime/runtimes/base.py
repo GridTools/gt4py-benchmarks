@@ -32,10 +32,12 @@ class Runtime(pydantic.BaseModel, abc.ABC):
         return SolverState(
             discrete_solution.local_resolution,
             discrete_solution.delta,
-            [self.stencil_backend.storage_from_array(data) for _ in range(3)],
             self.stencil_backend.storage_from_array(u),
             self.stencil_backend.storage_from_array(v),
             self.stencil_backend.storage_from_array(w),
+            self.stencil_backend.storage_from_array(data),
+            self.stencil_backend.storage_from_array(data),
+            self.stencil_backend.storage_from_array(data),
         )
 
     def compute_error(self, state, discrete_solution, t):
@@ -59,7 +61,7 @@ class Runtime(pydantic.BaseModel, abc.ABC):
 
         return np.amax(
             np.abs(
-                self.stencil_backend.array_from_storage(state.data[0])[inner]
+                self.stencil_backend.array_from_storage(state.data)[inner]
                 - discrete_solution.data(i, j, k, t)
             )
         )
