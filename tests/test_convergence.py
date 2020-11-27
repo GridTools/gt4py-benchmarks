@@ -6,7 +6,7 @@ import pytest
 
 from gt4py_benchmarks.verification import analytical, convergence
 from gt4py_benchmarks.runtime.runtimes import SingleNodeRuntime
-from gt4py_benchmarks.numerics.stencil_backends import GT4PyStencilBackend
+from gt4py_benchmarks.numerics.stencil_backends import GT4PyStencilBackend, GTBenchStencilBackend
 
 
 @pytest.fixture(params=["float32", "float64"])
@@ -31,6 +31,12 @@ def dtype(request):
         functools.partial(GT4PyStencilBackend, gt4py_backend="dacex86"),
         pytest.param(
             functools.partial(GT4PyStencilBackend, gt4py_backend="dacecuda"),
+            marks=pytest.mark.requires_gpu,
+        ),
+        functools.partial(GTBenchStencilBackend, gtbench_backend="cpu_i_first"),
+        functools.partial(GTBenchStencilBackend, gtbench_backend="cpu_k_first"),
+        pytest.param(
+            functools.partial(GTBenchStencilBackend, gtbench_backend="gpu"),
             marks=pytest.mark.requires_gpu,
         ),
     ],

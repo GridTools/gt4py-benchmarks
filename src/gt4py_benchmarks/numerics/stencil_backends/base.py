@@ -18,21 +18,17 @@ class StencilBackend(pydantic.BaseModel, abc.ABC):
     def array_from_storage(self, storage):
         return np.asarray(storage)
 
-    @abc.abstractmethod
     def hdiff_stencil(self, resolution, delta, diffusion_coeff):
-        pass
+        raise NotImplementedError()
 
-    @abc.abstractmethod
     def vdiff_stencil(self, resolution, delta, diffusion_coeff):
-        pass
+        raise NotImplementedError()
 
-    @abc.abstractmethod
     def hadv_stencil(self, resolution, delta):
-        pass
+        raise NotImplementedError()
 
-    @abc.abstractmethod
     def vadv_stencil(self, resolution, delta):
-        pass
+        raise NotImplementedError()
 
     def hdiff_stepper(self, diffusion_coeff):
         def stepper(state, exchange):
