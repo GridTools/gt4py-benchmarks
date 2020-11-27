@@ -1,0 +1,3 @@
+[submodule "src/gt4py_benchmarks/numerics/stencil_backends/gtbench_backend/gtbench"]
+	path = src/gt4py_benchmarks/numerics/stencil_backends/gtbench_backend/gtbench
+	url = https://github.com/fthaler/gtbench.git
