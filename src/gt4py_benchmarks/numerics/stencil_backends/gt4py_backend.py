@@ -139,6 +139,7 @@ class GT4PyStencilBackend(base.StencilBackend):
             self._scalar(delta[0]),
             self._scalar(delta[1]),
             domain=resolution,
+            validate_args=False,
         )
 
     def vdiff_stencil(self, resolution, delta, diffusion_coeff):
@@ -235,6 +236,7 @@ class GT4PyStencilBackend(base.StencilBackend):
             self._scalar(diffusion_coeff),
             self._scalar(delta[2]),
             domain=resolution,
+            validate_args=False,
         )
 
     def hadv_stencil(self, resolution, delta):
@@ -268,6 +270,7 @@ class GT4PyStencilBackend(base.StencilBackend):
             self._scalar(delta[0]),
             self._scalar(delta[1]),
             domain=resolution,
+            validate_args=False,
         )
 
     def vadv_stencil(self, resolution, delta):
@@ -362,5 +365,12 @@ class GT4PyStencilBackend(base.StencilBackend):
                     out = inp0 + (d1 + d2 * out_top - inp)
 
         return lambda out, inp, inp0, w, dt: vadv(
-            out, inp, inp0, w, self._scalar(dt), self._scalar(delta[2]), domain=resolution
+            out,
+            inp,
+            inp0,
+            w,
+            self._scalar(dt),
+            self._scalar(delta[2]),
+            domain=resolution,
+            validate_args=False,
         )
