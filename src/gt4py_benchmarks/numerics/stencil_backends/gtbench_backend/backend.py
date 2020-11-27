@@ -16,7 +16,7 @@ BUILD_PATH = pathlib.Path(".gtbench_cache")
 
 
 class GTBenchStencilBackend(base.StencilBackend):
-    gtbench_backend: typing_extensions.Literal["cpu_i_first", "cpu_k_first", "gpu"]
+    gtbench_backend: typing_extensions.Literal["cpu_ifirst", "cpu_kfirst", "gpu"]
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -29,6 +29,7 @@ class GTBenchStencilBackend(base.StencilBackend):
         self._gtbench = self._load_gtbench()
         assert self._gtbench.halo == HALO
         assert self._gtbench.dtype == self.dtype
+        assert self._gtbench.backend == self.gtbench_backend
 
     def _configure_gtbench(self):
         self._build_dir.mkdir(parents=True, exist_ok=True)
@@ -39,6 +40,7 @@ class GTBenchStencilBackend(base.StencilBackend):
             f"-DCMAKE_INSTALL_PREFIX={self._build_dir.absolute()}/install",
             "-DGTBENCH_PYTHON_BINDINGS=ON",
             "-DGTBENCH_RUNTIME=single_node",
+            f"-DGTBENCH_BACKEND={self.gtbench_backend}",
             f"-DGTBENCH_FLOAT={cpp_dtype}",
             f"-DGTBENCH_PYTHON_MODULE_NAME={self._module_name}",
             f"-DPython_EXECUTABLE={sys.executable}",
