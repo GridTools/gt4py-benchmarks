@@ -113,7 +113,9 @@ class GT4PyStencilBackend(base.StencilBackend):
             cp.cuda.Device().synchronize()
 
     def hdiff_stencil(self, resolution, delta, diffusion_coeff):
-        @gtscript.stencil(backend=self._modified_gt4py_backend(resolution))
+        @gtscript.stencil(
+            backend=self._modified_gt4py_backend(resolution), enforce_dtype=self.dtype
+        )
         def hdiff(
             out: self._field,
             inp: self._field,
@@ -145,6 +147,7 @@ class GT4PyStencilBackend(base.StencilBackend):
     def vdiff_stencil(self, resolution, delta, diffusion_coeff):
         @gtscript.stencil(
             backend=self._modified_gt4py_backend(resolution),
+            enforce_dtype=self.dtype,
             externals=dict(k_offset=int(resolution[2] - 1)),
         )
         def vdiff(
@@ -240,7 +243,9 @@ class GT4PyStencilBackend(base.StencilBackend):
         )
 
     def hadv_stencil(self, resolution, delta):
-        @gtscript.stencil(backend=self._modified_gt4py_backend(resolution))
+        @gtscript.stencil(
+            backend=self._modified_gt4py_backend(resolution), enforce_dtype=self.dtype
+        )
         def hadv(
             out: self._field,
             inp: self._field,
@@ -276,6 +281,7 @@ class GT4PyStencilBackend(base.StencilBackend):
     def vadv_stencil(self, resolution, delta):
         @gtscript.stencil(
             backend=self._modified_gt4py_backend(resolution),
+            enforce_dtype=self.dtype,
             externals=dict(k_offset=int(resolution[2] - 1)),
         )
         def vadv(
