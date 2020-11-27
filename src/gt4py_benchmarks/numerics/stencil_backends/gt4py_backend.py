@@ -106,6 +106,12 @@ class GT4PyStencilBackend(base.StencilBackend):
             managed_memory=True,
         )
 
+    def synchronize(self):
+        if self.gt4py_backend == "dacecuda":
+            import cupy as cp
+
+            cp.cuda.Device().synchronize()
+
     def hdiff_stencil(self, resolution, delta, diffusion_coeff):
         @gtscript.stencil(backend=self._modified_gt4py_backend(resolution))
         def hdiff(
