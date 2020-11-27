@@ -18,30 +18,30 @@ def per_runtime_cli(func, options=None, **defaults):
         pass
 
     for runtime in runtimes.REGISTRY:
-        runtime_fields = runtime.__fields__
 
         @cli.group(name=cli_name(runtime.__name__.replace("Runtime", "")))
         def group():
             pass
 
         for stencil_backend in stencil_backends.REGISTRY:
-            stencil_backend_fields = stencil_backend.__fields__
 
-            def command(**kwargs):
-                runtime_kwargs = {k: v for k, v in kwargs.items() if k in runtime_fields}
+            def command(runtime=runtime, stencil_backend=stencil_backend, **kwargs):
+                runtime_kwargs = {k: v for k, v in kwargs.items() if k in runtime.__fields__}
                 stencil_backend_kwargs = {
-                    k: v for k, v in kwargs.items() if k in stencil_backend_fields
+                    k: v for k, v in kwargs.items() if k in stencil_backend.__fields__
                 }
                 option_args = {
                     k: v
                     for k, v in kwargs.items()
-                    if k not in runtime_fields and k not in stencil_backend_fields
+                    if k not in runtime.__fields__ and k not in stencil_backend.__fields__
                 }
                 sb = stencil_backend(**stencil_backend_kwargs)
                 rt = runtime(stencil_backend=sb, **stencil_backend_kwargs)
                 func(rt, **option_args)
 
-            for k, v in itertools.chain(runtime_fields.items(), stencil_backend_fields.items()):
+            for k, v in itertools.chain(
+                runtime.__fields__.items(), stencil_backend.__fields__.items()
+            ):
                 if k != "stencil_backend":
                     dtype = None
                     if v.type_ is int:
