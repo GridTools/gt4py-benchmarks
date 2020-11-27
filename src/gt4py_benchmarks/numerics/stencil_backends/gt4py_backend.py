@@ -81,6 +81,8 @@ class GT4PyStencilBackend(base.StencilBackend):
                         {f"_{name}_{d}_stride": np.int32(s) for d, s in zip("IJK", strides)}
                     )
                 sdfg.specialize(symbols)
+                for nsdfg in sdfg.all_sdfgs_recursive():
+                    nsdfg.specialize(symbols)
                 return super().transform_optimize(sdfg)
 
         class Backend(backend):
