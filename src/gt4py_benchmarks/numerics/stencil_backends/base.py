@@ -18,6 +18,9 @@ class StencilBackend(pydantic.BaseModel, abc.ABC):
     def array_from_storage(self, storage):
         return np.asarray(storage)
 
+    def synchronize(self):
+        pass
+
     def hdiff_stencil(self, resolution, delta, diffusion_coeff):
         raise NotImplementedError()
 

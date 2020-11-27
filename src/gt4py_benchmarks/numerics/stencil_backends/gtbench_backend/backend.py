@@ -64,6 +64,10 @@ class GTBenchStencilBackend(base.StencilBackend):
     def array_from_storage(self, storage):
         return self._gtbench.array_from_storage(storage)
 
+    def synchronize(self):
+        import cupy as cp
+        cp.cuda.Device().synchronize()
+
     def hdiff_stepper(self, diffusion_coeff):
         return self._gtbench.hdiff_stepper(diffusion_coeff)
 

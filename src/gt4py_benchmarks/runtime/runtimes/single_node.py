@@ -23,6 +23,7 @@ class SingleNodeRuntime(base.Runtime):
         if tmax > 0:
             step(state, dt)
 
+        self.stencil_backend.synchronize()
         start = time.perf_counter()
 
         t = dt
@@ -30,6 +31,7 @@ class SingleNodeRuntime(base.Runtime):
             step(state, dt)
             t += dt
 
+        self.stencil_backend.synchronize()
         end = time.perf_counter()
 
         error = self.compute_error(state, exact, t)
