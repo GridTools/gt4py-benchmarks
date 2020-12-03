@@ -3,7 +3,6 @@ import abc
 import numpy as np
 import pydantic
 
-from ...constants import HALO
 from ...utils import registry
 
 

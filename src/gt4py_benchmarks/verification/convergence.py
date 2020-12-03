@@ -54,8 +54,6 @@ def convergence_test(
     n_temporal,
     full_range=False,
 ):
-    dtype = np.dtype(runtime.stencil_backend.dtype)
-
     def spatial_error(n):
         return runtime.solve(
             analytical, stepper, (n, n, n), tmax_spatial, tmax_spatial / 100

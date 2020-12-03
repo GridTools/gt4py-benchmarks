@@ -26,7 +26,6 @@ def per_runtime_cli(func, options=None, **defaults):
         for stencil_backend in stencil_backends.REGISTRY:
 
             def command(runtime=runtime, stencil_backend=stencil_backend, **kwargs):
-                runtime_kwargs = {k: v for k, v in kwargs.items() if k in runtime.__fields__}
                 stencil_backend_kwargs = {
                     k: v for k, v in kwargs.items() if k in stencil_backend.__fields__
                 }

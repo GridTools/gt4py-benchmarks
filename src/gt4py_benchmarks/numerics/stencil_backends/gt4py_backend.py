@@ -1,5 +1,5 @@
 import gt4py
-from gt4py import backend, gtscript, storage
+from gt4py import gtscript, storage
 from gt4py.gtscript import Field, computation, interval, FORWARD, BACKWARD, PARALLEL
 import numpy as np
 import typing_extensions
@@ -131,7 +131,9 @@ class GT4PyStencilBackend(base.StencilBackend):
                 fly = _hdiff_limited_flux(
                     inp[0, -3], inp[0, -2], inp[0, -1], inp, inp[0, 1], inp[0, 2], dy
                 )
-                out = inp + coeff * dt * ((flx[1, 0] - flx) / dx + (fly[0, 1] - fly) / dy)
+                out = inp + coeff * dt * (  # noqa: F841
+                    (flx[1, 0] - flx) / dx + (fly[0, 1] - fly) / dy
+                )
 
         return lambda out, inp, dt: hdiff(
             out,
@@ -230,7 +232,7 @@ class GT4PyStencilBackend(base.StencilBackend):
                     out = out_top
                 with interval(0, -1):
                     out_top = out_top[0, 0, 1]
-                    out = d1 + d2 * out_top
+                    out = d1 + d2 * out_top  # noqa: F841
 
         return lambda out, inp, dt: vdiff(
             out,
@@ -368,7 +370,7 @@ class GT4PyStencilBackend(base.StencilBackend):
                     out = inp0 + (out_top - inp)
                 with interval(0, -1):
                     out_top = out_top[0, 0, 1]
-                    out = inp0 + (d1 + d2 * out_top - inp)
+                    out = inp0 + (d1 + d2 * out_top - inp)  # noqa: F841
 
         return lambda out, inp, inp0, w, dt: vadv(
             out,

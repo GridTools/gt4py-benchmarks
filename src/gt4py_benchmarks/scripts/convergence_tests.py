@@ -1,5 +1,3 @@
-import itertools
-
 import click
 
 from ..verification import convergence

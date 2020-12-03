@@ -66,6 +66,7 @@ class GTBenchStencilBackend(base.StencilBackend):
 
     def synchronize(self):
         import cupy as cp
+
         cp.cuda.Device().synchronize()
 
     def hdiff_stepper(self, diffusion_coeff):
