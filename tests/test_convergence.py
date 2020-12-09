@@ -33,8 +33,8 @@ def dtype(request):
             functools.partial(GT4PyStencilBackend, gt4py_backend="dacecuda"),
             marks=pytest.mark.requires_gpu,
         ),
-        functools.partial(GTBenchStencilBackend, gtbench_backend="cpu_i_first"),
-        functools.partial(GTBenchStencilBackend, gtbench_backend="cpu_k_first"),
+        functools.partial(GTBenchStencilBackend, gtbench_backend="cpu_ifirst"),
+        functools.partial(GTBenchStencilBackend, gtbench_backend="cpu_kfirst"),
         pytest.param(
             functools.partial(GTBenchStencilBackend, gtbench_backend="gpu"),
             marks=pytest.mark.requires_gpu,
