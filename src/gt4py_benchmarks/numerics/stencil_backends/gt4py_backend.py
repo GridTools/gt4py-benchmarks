@@ -113,9 +113,7 @@ class GT4PyStencilBackend(base.StencilBackend):
             cp.cuda.Device().synchronize()
 
     def hdiff_stencil(self, resolution, delta, diffusion_coeff):
-        @gtscript.stencil(
-            backend=self._modified_gt4py_backend(resolution), enforce_dtype=self.dtype
-        )
+        @gtscript.stencil(backend=self._modified_gt4py_backend(resolution))
         def hdiff(
             out: self._field,
             inp: self._field,
@@ -126,13 +124,25 @@ class GT4PyStencilBackend(base.StencilBackend):
         ):
             with computation(PARALLEL), interval(...):
                 flx = _hdiff_limited_flux(
-                    inp[-3, 0], inp[-2, 0], inp[-1, 0], inp, inp[1, 0], inp[2, 0], dx
+                    inp[-3, 0, 0],
+                    inp[-2, 0, 0],
+                    inp[-1, 0, 0],
+                    inp,
+                    inp[1, 0, 0],
+                    inp[2, 0, 0],
+                    dx,
                 )
                 fly = _hdiff_limited_flux(
-                    inp[0, -3], inp[0, -2], inp[0, -1], inp, inp[0, 1], inp[0, 2], dy
+                    inp[0, -3, 0],
+                    inp[0, -2, 0],
+                    inp[0, -1, 0],
+                    inp,
+                    inp[0, 1, 0],
+                    inp[0, 2, 0],
+                    dy,
                 )
                 out = inp + coeff * dt * (  # noqa: F841
-                    (flx[1, 0] - flx) / dx + (fly[0, 1] - fly) / dy
+                    (flx[1, 0, 0] - flx) / dx + (fly[0, 1, 0] - fly) / dy
                 )
 
         return lambda out, inp, dt: hdiff(
@@ -149,7 +159,6 @@ class GT4PyStencilBackend(base.StencilBackend):
     def vdiff_stencil(self, resolution, delta, diffusion_coeff):
         @gtscript.stencil(
             backend=self._modified_gt4py_backend(resolution),
-            enforce_dtype=self.dtype,
             externals=dict(k_offset=int(resolution[2] - 1)),
         )
         def vdiff(
@@ -245,9 +254,7 @@ class GT4PyStencilBackend(base.StencilBackend):
         )
 
     def hadv_stencil(self, resolution, delta):
-        @gtscript.stencil(
-            backend=self._modified_gt4py_backend(resolution), enforce_dtype=self.dtype
-        )
+        @gtscript.stencil(backend=self._modified_gt4py_backend(resolution))
         def hadv(
             out: self._field,
             inp: self._field,
@@ -260,10 +267,26 @@ class GT4PyStencilBackend(base.StencilBackend):
         ):
             with computation(PARALLEL), interval(...):
                 flux_x = _hadv_upwind_flux(
-                    inp[-3, 0], inp[-2, 0], inp[-1, 0], inp, inp[1, 0], inp[2, 0], inp[3, 0], u, dx
+                    inp[-3, 0, 0],
+                    inp[-2, 0, 0],
+                    inp[-1, 0, 0],
+                    inp,
+                    inp[1, 0, 0],
+                    inp[2, 0, 0],
+                    inp[3, 0, 0],
+                    u,
+                    dx,
                 )
                 flux_y = _hadv_upwind_flux(
-                    inp[0, -3], inp[0, -2], inp[0, -1], inp, inp[0, 1], inp[0, 2], inp[0, 3], v, dy
+                    inp[0, -3, 0],
+                    inp[0, -2, 0],
+                    inp[0, -1, 0],
+                    inp,
+                    inp[0, 1, 0],
+                    inp[0, 2, 0],
+                    inp[0, 3, 0],
+                    v,
+                    dy,
                 )
                 out = inp0 - dt * (flux_x + flux_y)  # noqa
 
@@ -283,7 +306,6 @@ class GT4PyStencilBackend(base.StencilBackend):
     def vadv_stencil(self, resolution, delta):
         @gtscript.stencil(
             backend=self._modified_gt4py_backend(resolution),
-            enforce_dtype=self.dtype,
             externals=dict(k_offset=int(resolution[2] - 1)),
         )
         def vadv(
