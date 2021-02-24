@@ -62,7 +62,7 @@ class GT4PyStencilBackend(base.StencilBackend):
         "dacecuda",
         "gtc:gt:cpu_ifirst",
         "gtc:gt:cpu_kfirst",
-        "gtc:gt:cuda",
+        "gtc:gt:gpu",
         "gtc:cuda",
     ]
 
