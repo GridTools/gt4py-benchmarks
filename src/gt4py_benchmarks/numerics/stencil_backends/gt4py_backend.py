@@ -53,7 +53,17 @@ def _hadv_upwind_flux(im3, im2, im1, ic, ip1, ip2, ip3, velocity, delta):
 
 class GT4PyStencilBackend(base.StencilBackend):
     gt4py_backend: typing_extensions.Literal[
-        "debug", "numpy", "gtx86", "gtmc", "gtcuda", "dacex86", "dacecuda"
+        "debug",
+        "numpy",
+        "gtx86",
+        "gtmc",
+        "gtcuda",
+        "dacex86",
+        "dacecuda",
+        "gtc:gt:cpu_ifirst",
+        "gtc:gt:cpu_kfirst",
+        "gtc:gt:cuda",
+        "gtc:cuda",
     ]
 
     def __init__(self, **kwargs):
