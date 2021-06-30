@@ -117,7 +117,7 @@ class GT4PyStencilBackend(base.StencilBackend):
         )
 
     def synchronize(self):
-        if self.gt4py_backend == "dacecuda":
+        if "cuda" in self.gt4py_backend or "gpu" in self.gt4py_backend:
             import cupy as cp
 
             cp.cuda.Device().synchronize()
