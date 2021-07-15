@@ -1,63 +1,132 @@
-"""Analytical reference functions and discretization utils."""
-import numpy
+"""Analytical reference functions"""
+
+import functools
+import typing
+
+import numpy as np
 
 
-DOMAIN = tuple([4 * numpy.pi] * 3)
-AD_DOMAIN = (2 * numpy.pi, 2 * numpy.pi * numpy.sqrt(2.0), 2 * numpy.pi * numpy.sqrt(2.0))
+class AnalyticalSolution(typing.NamedTuple):
+    domain: typing.Tuple[float, float, float] = (4 * np.pi, 4 * np.pi, 4 * np.pi)
+    data: typing.Callable[
+        [float, float, float, float], np.array
+    ] = lambda x, y, z, t: np.zeros_like(x)
+    u: typing.Callable[[float, float, float, float], np.array] = lambda x, y, z, t: np.zeros_like(
+        x
+    )
+    v: typing.Callable[[float, float, float, float], np.array] = lambda x, y, z, t: np.zeros_like(
+        x
+    )
+    w: typing.Callable[[float, float, float, float], np.array] = lambda x, y, z, t: np.zeros_like(
+        x
+    )
 
 
-def map_domain(
-    i: float,
-    j: float,
-    k: float,
-    *,
-    resolution: tuple,
-    domain: tuple,
-    halo: float = 3,
-    offset: tuple = (0, 0),
-):
-    """Map the analytical to the computational spacial domain."""
-    x = (i - halo + offset[0]) * domain[0] / resolution[0]
-    y = (j - halo + offset[1]) * domain[1] / resolution[1]
-    z = k * domain[2] / resolution[2]
-    return x, y, z
+def horizontal_diffusion(diffusion_coeff):
+    def data(x, y, z, t):
+        return np.sin(x) * np.cos(y) * np.exp(-2 * diffusion_coeff * t)
+
+    return AnalyticalSolution(domain=(4 * np.pi, 4 * np.pi, 4 * np.pi), data=data)
 
 
-def horizontal_diffusion(x: float, y: float, z: float, *, coeff: float, time: float):
-    """Calculate horizontal diffusion reference value."""
-    return numpy.sin(x) * numpy.cos(y) * numpy.exp(-2 * coeff * time)
+def vertical_diffusion(diffusion_coeff):
+    def data(x, y, z, t):
+        return np.cos(z) * np.exp(-diffusion_coeff * t)
+
+    return AnalyticalSolution(domain=(4 * np.pi, 4 * np.pi, 4 * np.pi), data=data)
 
 
-def vertical_diffusion(x: float, y: float, z: float, *, coeff: float, time: float):
-    """Calculate vertical diffusion reference value."""
-    del x, y  # not needed but kept for unity of interface
-    return numpy.cos(z) * numpy.exp(-coeff * time)
+def full_diffusion(diffusion_coeff):
+    def data(x, y, z, t):
+        return np.sin(x) * np.cos(y) * np.cos(z) * np.exp(-3 * diffusion_coeff * t)
+
+    return AnalyticalSolution(domain=(4 * np.pi, 4 * np.pi, 4 * np.pi), data=data)
 
 
-def full_diffusion(x: float, y: float, z: float, *, coeff: float, time: float):
-    """Calculate full diffusion reference value."""
-    return numpy.sin(x) * numpy.cos(y) * numpy.cos(z) * numpy.exp(-3 * coeff * time)
+def horizontal_advection():
+    def data(x, y, z, t):
+        return np.sin(x - 0.2 * t) * np.cos(y + 0.3 * t) * np.cos(z)
+
+    def u(x, y, z, t):
+        return np.full_like(x, 0.2)
+
+    def v(x, y, z, t):
+        return np.full_like(x, -0.3)
+
+    return AnalyticalSolution(domain=(4 * np.pi, 4 * np.pi, 4 * np.pi), data=data, u=u, v=v)
 
 
-# horizontal advection velocity: (5, -2, 0)
-def horizontal_advection(x: float, y: float, z: float, *, time: float):
-    """Calculate horizontal advection reference value at given coordinates and time."""
-    return numpy.sin(x - 5 * time) * numpy.cos(y + 2 * time) * numpy.cos(z)
+def vertical_advection():
+    def data(x, y, z, t):
+        return np.sin(x) * np.cos(y) * np.cos(z - 0.6 * t)
+
+    def w(x, y, z, t):
+        return np.full_like(x, 0.6)
+
+    return AnalyticalSolution(domain=(4 * np.pi, 4 * np.pi, 4 * np.pi), data=data, w=w)
 
 
-# vertical advection velocity: (0, 0, 3)
-def vertical_advection(x: float, y: float, z: float, *, time: float):
-    """Calculate vertical advection reference value at given coordinates and time."""
-    return numpy.sin(x) * numpy.cos(y) * numpy.cos(z - 3 * time)
+def full_advection():
+    def data(x, y, z, t):
+        return np.sin(x - 0.1 * t) * np.cos(y + 0.2 * t) * np.cos(z - 0.3 * t)
+
+    def u(x, y, z, t):
+        return np.full_like(x, 0.1)
+
+    def v(x, y, z, t):
+        return np.full_like(x, -0.2)
+
+    def w(x, y, z, t):
+        return np.full_like(x, 0.3)
+
+    return AnalyticalSolution(domain=(4 * np.pi, 4 * np.pi, 4 * np.pi), data=data, u=u, v=v, w=w)
 
 
-# full advection velocity: (5, -2, 3)
-def full_advection(x: float, y: float, z: float, *, time: float):
-    """Calculate full advection reference value at given coordinates and time."""
-    return numpy.sin(x - 5 * time) * numpy.cos(y + 2 * time) * numpy.cos(z - 3 * time)
+def advection_diffusion(diffusion_coeff):
+    a = np.sqrt(2) / 2
+
+    def data(x, y, z, t):
+        return -np.sin(x) * np.sin(a * (y - z)) * np.exp(-2 * diffusion_coeff * t)
+
+    def u(x, y, z, t):
+        return -np.sin(x) * np.cos(a * (y - z)) * 0.1
+
+    def v(x, y, z, t):
+        return a * np.cos(x) * np.sin(a * (y - z)) * 0.1
+
+    def w(x, y, z, t):
+        return -a * np.cos(x) * np.sin(a * (y - z)) * 0.1
+
+    return AnalyticalSolution(
+        domain=(2 * np.pi, 2 * np.pi * np.sqrt(2), 2 * np.pi * np.sqrt(2)),
+        data=data,
+        u=u,
+        v=v,
+        w=w,
+    )
 
 
-def advection_diffusion(x: float, y: float, z: float, *, coeff: float, time: float):
-    """Calculate advection-diffusion reference value."""
-    a = numpy.sqrt(2.0) / 2.0
-    return -numpy.sin(x) * numpy.sin(a * (y - z)) * numpy.exp(-2.0 * coeff * time)
+def repeat(analytical: AnalyticalSolution, repeats: typing.Tuple[int, int, int]):
+    def remap(f):
+        @functools.wraps(f)
+        def remapped(x, y, z, t):
+            return f(
+                np.fmod(x, analytical.domain[0]),
+                np.fmod(y, analytical.domain[1]),
+                np.fmod(z, analytical.domain[2]),
+                t,
+            )
+
+        return remapped
+
+    return AnalyticalSolution(
+        domain=(
+            analytical.domain[0] * repeats[0],
+            analytical.domain[1] * repeats[1],
+            analytical.domain[2] * repeats[2],
+        ),
+        data=remap(analytical.data),
+        u=remap(analytical.u),
+        v=remap(analytical.v),
+        w=remap(analytical.w),
+    )
