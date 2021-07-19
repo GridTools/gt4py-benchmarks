@@ -27,6 +27,7 @@ class Simulation:
         )
         stencil_args = {
             "backend": self.backend_name,
+            "shape": self.shape,
             "dspace": dspace,
             "time_step": self.time_step,
         }
@@ -57,9 +58,7 @@ class Simulation:
 
     def step(self):
         """Run a simulation step."""
-        self.stencil(
-            self.data1, self.data, dt=self.time_step,
-        )
+        self.stencil(self.data1, self.data, dt=self.time_step)
         self._swap_data()
 
     def __repr__(self):
