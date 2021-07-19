@@ -1,6 +1,6 @@
 {
     "benchmarks.AdvectionDiffusionSuite.time_run": {
-        "code": "class AdvectionDiffusionSuite:\n    def time_run(self, size, backend):\n        \"\"\"Run the benchmark simulation loop.\"\"\"\n        self.simulation.run()\n\n    def setup(self, size, backend):\n        \"\"\"Set up the simulation according to the given parameters.\"\"\"\n        self.simulation = None\n        if not has_cupy() and backend in [\"gtcuda\"]:\n            print(\"cupy not importable\", file=sys.stderr)\n            raise NotImplementedError()\n        self.simulation_spec = {\n            \"stencil\": None,\n            \"reference\": analytical.advection_diffusion,\n            \"tolerance\": 1.5e-2,\n            \"subclass\": AdvDiffSimulation,\n            \"domain\": analytical.AD_DOMAIN,\n            \"extra-args\": {\"coeff\": 0.05},\n            \"shape\": (size, size, 60),\n            \"max-time\": 0.1,\n            \"time-step\": 1e-3,\n        }\n        self.simulation = AdvDiffSimulation(self.simulation_spec, backend=backend)",
+        "code": "class AdvectionDiffusionSuite:\n    def time_run(self, size, backend):\n        \"\"\"Run the benchmark simulation loop.\"\"\"\n        run_benchmark(self.runtime, [size, size, size], self.runs)\n\n    def setup(self, size, backend):\n        \"\"\"Set up the simulation according to the given parameters.\"\"\"\n        self.simulation = None\n        cupy_ok, cupy_import_err = has_cupy()\n        if not cupy_ok and backend in [\"gtcuda\"]:\n            print(f\"cupy not importable: {cupy_import_err}\", file=sys.stderr)\n            raise NotImplementedError()\n        self.runtime = SingleNodeRuntime(stencil_backend=GT4PyStencilBackend(gt4py_backend=backend, dtype=\"float\"))\n        self.runs = 10",
         "min_run_count": 2,
         "name": "benchmarks.AdvectionDiffusionSuite.time_run",
         "number": 0,
@@ -10,16 +10,10 @@
         ],
         "params": [
             [
-                "16",
-                "32",
-                "64",
-                "128"
+                "16"
             ],
             [
-                "'gtx86'",
-                "'gtmc'",
-                "'gtcuda'",
-                "'numpy'"
+                "'gtc:gt:cpu_kfirst'"
             ]
         ],
         "processes": 2,
@@ -28,7 +22,7 @@
         "timeout": 600,
         "type": "time",
         "unit": "seconds",
-        "version": "2cd2041902fd72bec5046b255e100b811dd9a49c4f4d8711a56189900071bccd",
+        "version": "e414963659fd0d6f32efe3bb61405fd8d58db98af8c8b16bfdf93f8018770c4c",
         "warmup_time": -1
     },
     "version": 2
